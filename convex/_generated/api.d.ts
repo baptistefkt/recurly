@@ -8,8 +8,10 @@
  * @module
  */
 
+import type * as ResendOTPPasswordReset from "../ResendOTPPasswordReset.js";
 import type * as auth from "../auth.js";
 import type * as completions from "../completions.js";
+import type * as email from "../email.js";
 import type * as http from "../http.js";
 import type * as router from "../router.js";
 import type * as tasks from "../tasks.js";
@@ -21,8 +23,10 @@ import type {
 } from "convex/server";
 
 declare const fullApi: ApiFromModules<{
+  ResendOTPPasswordReset: typeof ResendOTPPasswordReset;
   auth: typeof auth;
   completions: typeof completions;
+  email: typeof email;
   http: typeof http;
   router: typeof router;
   tasks: typeof tasks;
@@ -54,4 +58,6 @@ export declare const internal: FilterApi<
   FunctionReference<any, "internal">
 >;
 
-export declare const components: {};
+export declare const components: {
+  resend: import("@convex-dev/resend/_generated/component.js").ComponentApi<"resend">;
+};

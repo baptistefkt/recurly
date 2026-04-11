@@ -3,7 +3,11 @@ import { useAuthActions } from "@convex-dev/auth/react";
 import { useState } from "react";
 import { toast } from "sonner";
 
-export function SignInForm() {
+export function SignInForm({
+  onForgotPassword,
+}: {
+  onForgotPassword?: () => void;
+}) {
   const { signIn } = useAuthActions();
   const [flow, setFlow] = useState<"signIn" | "signUp">("signIn");
   const [submitting, setSubmitting] = useState(false);
@@ -63,15 +67,16 @@ export function SignInForm() {
             {flow === "signIn" ? "Sign up instead" : "Sign in instead"}
           </button>
         </div>
+        {flow === "signIn" && onForgotPassword ? (
+          <button
+            type="button"
+            className="text-center text-sm text-primary hover:text-primary-hover hover:underline font-medium cursor-pointer w-full"
+            onClick={onForgotPassword}
+          >
+            Forgot password?
+          </button>
+        ) : null}
       </form>
-      <div className="flex items-center justify-center my-3">
-        <hr className="my-4 grow border-gray-200" />
-        <span className="mx-4 text-secondary">or</span>
-        <hr className="my-4 grow border-gray-200" />
-      </div>
-      <button className="auth-button" onClick={() => void signIn("anonymous")}>
-        Sign in anonymously
-      </button>
     </div>
   );
 }

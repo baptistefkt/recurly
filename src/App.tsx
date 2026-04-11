@@ -1,4 +1,6 @@
 import { Authenticated, Unauthenticated } from "convex/react";
+import { useState } from "react";
+import { PasswordResetForm } from "./PasswordResetForm";
 import { SignInForm } from "./SignInForm";
 import { Toaster } from "sonner";
 import { TaskDashboard } from "./TaskDashboard";
@@ -18,6 +20,8 @@ export default function App() {
 }
 
 function LandingPage() {
+  const [screen, setScreen] = useState<"signIn" | "reset">("signIn");
+
   return (
     <div className="min-h-screen flex flex-col items-center justify-center p-6 bg-white">
       <div className="w-full max-w-sm">
@@ -30,7 +34,11 @@ function LandingPage() {
           <h1 className="text-3xl font-bold text-gray-900 tracking-tight">Recurly</h1>
           <p className="mt-2 text-gray-500 text-sm">Track your recurring tasks with ease</p>
         </div>
-        <SignInForm />
+        {screen === "signIn" ? (
+          <SignInForm onForgotPassword={() => setScreen("reset")} />
+        ) : (
+          <PasswordResetForm onBack={() => setScreen("signIn")} />
+        )}
       </div>
     </div>
   );
