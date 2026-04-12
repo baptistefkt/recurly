@@ -1,6 +1,13 @@
 import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
 import { getAuthUserId } from "@convex-dev/auth/server";
+import { assertCanAccessTask } from "./teamAccess";
+
+function displayName(email: string | undefined, name: string | undefined) {
+  if (name?.trim()) return name.trim();
+  if (email) return email;
+  return "Someone";
+}
 
 export const listForTask = query({
   args: { taskId: v.id("tasks"), limit: v.optional(v.number()) },
@@ -8,7 +15,12 @@ export const listForTask = query({
     const userId = await getAuthUserId(ctx);
     if (!userId) return [];
     const task = await ctx.db.get(args.taskId);
-    if (!task || task.userId !== userId) return [];
+    if (!task) return [];
+    try {
+      await assertCanAccessTask(ctx, task, userId);
+    } catch {
+      return [];
+    }
 
     const completions = await ctx.db
       .query("completions")
@@ -16,7 +28,15 @@ export const listForTask = query({
       .order("desc")
       .take(args.limit ?? 50);
 
-    return completions;
+    const out = [];
+    for (const c of completions) {
+      const u = await ctx.db.get(c.userId);
+      out.push({
+        ...c,
+        completerDisplayName: displayName(u?.email, u?.name),
+      });
+    }
+    return out;
   },
 });
 
@@ -30,7 +50,8 @@ export const markComplete = mutation({
     const userId = await getAuthUserId(ctx);
     if (!userId) throw new Error("Not authenticated");
     const task = await ctx.db.get(args.taskId);
-    if (!task || task.userId !== userId) throw new Error("Not found");
+    if (!task) throw new Error("Not found");
+    await assertCanAccessTask(ctx, task, userId);
     return await ctx.db.insert("completions", {
       taskId: args.taskId,
       userId,
@@ -46,7 +67,13 @@ export const deleteCompletion = mutation({
     const userId = await getAuthUserId(ctx);
     if (!userId) throw new Error("Not authenticated");
     const completion = await ctx.db.get(args.completionId);
-    if (!completion || completion.userId !== userId) throw new Error("Not found");
+    if (!completion) throw new Error("Not found");
+    const task = await ctx.db.get(completion.taskId);
+    if (!task) throw new Error("Not found");
+    await assertCanAccessTask(ctx, task, userId);
+    const isCompleter = completion.userId === userId;
+    const isTaskCreator = task.userId === userId;
+    if (!isCompleter && !isTaskCreator) throw new Error("Not allowed");
     await ctx.db.delete(args.completionId);
   },
 });

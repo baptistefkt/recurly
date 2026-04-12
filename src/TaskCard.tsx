@@ -1,7 +1,12 @@
 import { useMutation } from "convex/react";
+import { Check } from "lucide-react";
 import { api } from "../convex/_generated/api";
 import { Id } from "../convex/_generated/dataModel";
 import { formatDistanceToNow } from "./dateUtils";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
+import { cn } from "@/lib/utils";
 
 type TaskWithMeta = {
   _id: Id<"tasks">;
@@ -13,6 +18,8 @@ type TaskWithMeta = {
   recurrenceDayOfWeek?: number;
   isArchived?: boolean;
   color?: string;
+  visibility?: "personal" | "team";
+  assigneeUserIds?: Id<"users">[];
   lastCompletedAt: number | null;
   completionCount: number;
   nextDueAt: number | null;
@@ -31,11 +38,9 @@ const COLORS: Record<string, string> = {
 
 export function TaskCard({
   task,
-  onEdit,
   onDetail,
 }: {
   task: TaskWithMeta;
-  onEdit: () => void;
   onDetail: () => void;
 }) {
   const markComplete = useMutation(api.completions.markComplete);
@@ -49,47 +54,64 @@ export function TaskCard({
   const colorDot = COLORS[task.color ?? "gray"] ?? COLORS.gray;
 
   return (
-    <div
-      className={`bg-white rounded-xl border transition-all cursor-pointer hover:shadow-sm ${
-        isOverdue ? "border-red-200" : "border-gray-200"
-      }`}
+    <Card
+      className={cn(
+        "cursor-pointer shadow-none transition-shadow hover:shadow-sm",
+        isOverdue && "border-destructive/40"
+      )}
       onClick={onDetail}
     >
-      <div className="flex items-center gap-3 px-4 py-3">
-        <div className={`w-2.5 h-2.5 rounded-full flex-shrink-0 ${colorDot}`} />
+      <CardContent className="flex items-center gap-3 px-4 py-3">
+        <div className={cn("h-2.5 w-2.5 flex-shrink-0 rounded-full", colorDot)} />
 
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2">
-            <span className="font-medium text-gray-900 text-sm truncate">{task.title}</span>
-            {isOverdue && (
-              <span className="text-xs bg-red-100 text-red-600 px-1.5 py-0.5 rounded-full font-medium flex-shrink-0">
-                Overdue
+        <div className="min-w-0 flex-1">
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="truncate text-sm font-medium text-foreground">{task.title}</span>
+            {task.visibility === "team" && (
+              <Badge variant="secondary" className="border-indigo-200 bg-indigo-50 text-[10px] font-semibold uppercase tracking-wide text-indigo-700">
+                Team
+              </Badge>
+            )}
+            {task.assigneeUserIds && task.assigneeUserIds.length > 0 && (
+              <span className="text-[10px] text-muted-foreground">
+                {task.assigneeUserIds.length} assigned
               </span>
+            )}
+            {isOverdue && (
+              <Badge variant="destructive" className="flex-shrink-0 text-xs font-medium">
+                Overdue
+              </Badge>
             )}
             {isDueToday && !isOverdue && (
-              <span className="text-xs bg-amber-100 text-amber-600 px-1.5 py-0.5 rounded-full font-medium flex-shrink-0">
+              <Badge
+                variant="secondary"
+                className="flex-shrink-0 border-amber-200 bg-amber-100 text-xs font-medium text-amber-800"
+              >
                 Due today
-              </span>
+              </Badge>
             )}
           </div>
-          <div className="flex items-center gap-3 mt-0.5">
-            <span className="text-xs text-gray-400">{recurrenceLabel(task)}</span>
+          <div className="mt-0.5 flex items-center gap-3">
+            <span className="text-xs text-muted-foreground">{recurrenceLabel(task)}</span>
             {task.lastCompletedAt ? (
-              <span className="text-xs text-gray-400">
+              <span className="text-xs text-muted-foreground">
                 Last: {formatDistanceToNow(task.lastCompletedAt)}
               </span>
             ) : (
-              <span className="text-xs text-gray-400">Never done</span>
+              <span className="text-xs text-muted-foreground">Never done</span>
             )}
           </div>
         </div>
 
-        <div className="text-right flex-shrink-0 mr-2">
+        <div className="mr-2 flex-shrink-0 text-right">
           {task.nextDueAt ? (
             <div
-              className={`text-xs font-medium ${
-                isOverdue ? "text-red-500" : isDueToday ? "text-amber-500" : "text-gray-400"
-              }`}
+              className={cn(
+                "text-xs font-medium",
+                isOverdue && "text-destructive",
+                isDueToday && !isOverdue && "text-amber-600",
+                !isOverdue && !isDueToday && "text-muted-foreground"
+              )}
             >
               {isOverdue
                 ? formatDistanceToNow(task.nextDueAt) + " ago"
@@ -98,40 +120,41 @@ export function TaskCard({
           ) : null}
         </div>
 
-        <button
+        <Button
+          type="button"
+          variant="outline"
+          size="icon"
+          className="group h-8 w-8 flex-shrink-0 rounded-full hover:border-primary hover:bg-primary hover:text-primary-foreground"
+          title="Mark complete"
           onClick={async (e) => {
             e.stopPropagation();
             await markComplete({ taskId: task._id });
           }}
-          className="w-8 h-8 rounded-full border-2 border-gray-200 flex items-center justify-center hover:border-gray-900 hover:bg-gray-900 hover:text-white transition-all group flex-shrink-0"
-          title="Mark complete"
         >
-          <svg
-            className="w-4 h-4 text-gray-300 group-hover:text-white"
-            fill="none"
-            viewBox="0 0 24 24"
-            stroke="currentColor"
-          >
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
-          </svg>
-        </button>
-      </div>
-    </div>
+          <Check className="h-4 w-4 text-muted-foreground group-hover:text-primary-foreground" />
+        </Button>
+      </CardContent>
+    </Card>
   );
 }
 
 function recurrenceLabel(task: TaskWithMeta): string {
   switch (task.recurrenceType) {
-    case "daily": return "Every day";
-    case "weekly": return "Every week";
-    case "biweekly": return "Every 2 weeks";
-    case "monthly": return "Every month";
+    case "daily":
+      return "Every day";
+    case "weekly":
+      return "Every week";
+    case "biweekly":
+      return "Every 2 weeks";
+    case "monthly":
+      return "Every month";
     case "custom": {
       const n = task.recurrenceInterval ?? 1;
       const unit = task.recurrenceUnit ?? "days";
       const label = n === 1 ? unit.replace(/s$/, "") : unit;
       return `Every ${n} ${label}`;
     }
-    default: return "";
+    default:
+      return "";
   }
 }

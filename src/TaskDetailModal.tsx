@@ -2,6 +2,14 @@ import { useMutation, useQuery } from "convex/react";
 import { api } from "../convex/_generated/api";
 import { Id } from "../convex/_generated/dataModel";
 import { CompletionTimeline } from "./CompletionTimeline";
+import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { ScrollArea } from "@/components/ui/scroll-area";
 
 export function TaskDetailModal({
   taskId,
@@ -14,6 +22,10 @@ export function TaskDetailModal({
 }) {
   const task = useQuery(api.tasks.get, { taskId });
   const completions = useQuery(api.completions.listForTask, { taskId, limit: 20 });
+  const teamMembers = useQuery(
+    api.teams.members,
+    task?.visibility === "team" && task.teamId ? { teamId: task.teamId } : "skip"
+  );
   const markComplete = useMutation(api.completions.markComplete);
   const archiveTask = useMutation(api.tasks.archive);
   const unarchiveTask = useMutation(api.tasks.unarchive);
@@ -21,57 +33,66 @@ export function TaskDetailModal({
   if (!task) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center">
-      <div className="absolute inset-0 bg-black/40" onClick={onClose} />
-      <div className="relative bg-white w-full sm:max-w-md sm:rounded-2xl rounded-t-2xl max-h-[85vh] flex flex-col shadow-xl">
-        <div className="flex items-center justify-between px-5 pt-5 pb-3 border-b border-gray-100">
-          <h2 className="font-semibold text-gray-900 text-lg truncate pr-4">{task.title}</h2>
-          <button type="button" onClick={onClose} className="text-gray-400 hover:text-gray-600 flex-shrink-0">
-            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-            </svg>
-          </button>
-        </div>
-        <div className="overflow-y-auto flex-1 px-5 py-4 flex flex-col gap-4">
-          {task.description && (
-            <p className="text-gray-500 text-sm">{task.description}</p>
-          )}
-          <div className="flex gap-2">
-            <button
-              type="button"
-              onClick={async () => {
-                await markComplete({ taskId });
-                onClose();
-              }}
-              className="flex-1 bg-gray-900 text-white text-sm font-medium py-2.5 rounded-lg hover:bg-gray-700 transition-colors"
-            >
-              ✓ Mark Complete
-            </button>
-            <button
-              type="button"
-              onClick={onEdit}
-              className="px-4 py-2.5 border border-gray-200 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors"
-            >
-              Edit
-            </button>
-            <button
-              type="button"
-              onClick={async () => {
-                if (task.isArchived) {
-                  await unarchiveTask({ taskId });
-                } else {
-                  await archiveTask({ taskId });
-                }
-                onClose();
-              }}
-              className="px-4 py-2.5 border border-gray-200 rounded-lg text-sm font-medium text-gray-500 hover:bg-gray-50 transition-colors"
-            >
-              {task.isArchived ? "Restore" : "Archive"}
-            </button>
+    <Dialog open onOpenChange={(open) => { if (!open) onClose(); }}>
+      <DialogContent className="flex max-h-[85vh] flex-col gap-0 overflow-hidden p-0 sm:max-w-md">
+        <DialogHeader className="space-y-0 border-b px-5 pb-3 pt-5 text-left">
+          <DialogTitle className="truncate pr-8">{task.title}</DialogTitle>
+        </DialogHeader>
+        <ScrollArea className="max-h-[min(60vh,32rem)] flex-1 px-5 py-4">
+          <div className="flex flex-col gap-4 pr-3">
+            {task.visibility === "team" && (
+              <p className="text-xs font-medium text-indigo-600">Shared with the team</p>
+            )}
+            {task.assigneeUserIds &&
+              task.assigneeUserIds.length > 0 &&
+              teamMembers && (
+                <p className="text-sm text-muted-foreground">
+                  <span className="text-muted-foreground/80">Assigned: </span>
+                  {task.assigneeUserIds
+                    .map((id) => {
+                      const m = teamMembers.find((x) => x.userId === id);
+                      return m?.name || m?.email || "Member";
+                    })
+                    .join(", ")}
+                </p>
+              )}
+            {task.description && (
+              <p className="text-sm text-muted-foreground">{task.description}</p>
+            )}
+            <div className="flex flex-wrap gap-2">
+              <Button
+                type="button"
+                className="flex-1 min-w-[8rem]"
+                onClick={async () => {
+                  await markComplete({ taskId });
+                  onClose();
+                }}
+              >
+                ✓ Mark Complete
+              </Button>
+              <Button type="button" variant="outline" onClick={onEdit}>
+                Edit
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                className="text-muted-foreground"
+                onClick={async () => {
+                  if (task.isArchived) {
+                    await unarchiveTask({ taskId });
+                  } else {
+                    await archiveTask({ taskId });
+                  }
+                  onClose();
+                }}
+              >
+                {task.isArchived ? "Restore" : "Archive"}
+              </Button>
+            </div>
+            <CompletionTimeline completions={completions ?? []} taskId={taskId} />
           </div>
-          <CompletionTimeline completions={completions ?? []} taskId={taskId} />
-        </div>
-      </div>
-    </div>
+        </ScrollArea>
+      </DialogContent>
+    </Dialog>
   );
 }

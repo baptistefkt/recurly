@@ -2,6 +2,9 @@
 import { useAuthActions } from "@convex-dev/auth/react";
 import { useState } from "react";
 import { toast } from "sonner";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 
 type Step = "forgot" | { email: string };
 
@@ -30,26 +33,25 @@ export function PasswordResetForm({ onBack }: { onBack: () => void }) {
               .finally(() => setSubmitting(false));
           }}
         >
-          <input
-            className="auth-input-field"
-            type="email"
-            name="email"
-            placeholder="Email"
-            required
-            autoComplete="email"
-          />
+          <div className="space-y-2">
+            <Label htmlFor="reset-email">Email</Label>
+            <Input
+              id="reset-email"
+              type="email"
+              name="email"
+              placeholder="you@example.com"
+              required
+              autoComplete="email"
+            />
+          </div>
           <input name="flow" type="hidden" value="reset" />
-          <button className="auth-button" type="submit" disabled={submitting}>
+          <Button type="submit" className="w-full" disabled={submitting}>
             Send code
-          </button>
+          </Button>
         </form>
-        <button
-          type="button"
-          className="text-center text-sm text-primary hover:text-primary-hover hover:underline font-medium cursor-pointer"
-          onClick={onBack}
-        >
+        <Button type="button" variant="link" className="w-full" onClick={onBack}>
           Back to sign in
-        </button>
+        </Button>
       </div>
     );
   }
@@ -73,44 +75,46 @@ export function PasswordResetForm({ onBack }: { onBack: () => void }) {
             .finally(() => setSubmitting(false));
         }}
       >
-        <input
-          className="auth-input-field"
-          name="code"
-          placeholder="Reset code"
-          type="text"
-          inputMode="numeric"
-          autoComplete="one-time-code"
-          required
-        />
-        <input
-          className="auth-input-field"
-          name="newPassword"
-          placeholder="New password"
-          type="password"
-          autoComplete="new-password"
-          required
-          minLength={8}
-        />
+        <div className="space-y-2">
+          <Label htmlFor="reset-code">Reset code</Label>
+          <Input
+            id="reset-code"
+            name="code"
+            placeholder="12345678"
+            type="text"
+            inputMode="numeric"
+            autoComplete="one-time-code"
+            required
+          />
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="reset-new-password">New password</Label>
+          <Input
+            id="reset-new-password"
+            name="newPassword"
+            type="password"
+            autoComplete="new-password"
+            required
+            minLength={8}
+          />
+        </div>
         <input name="email" value={step.email} type="hidden" readOnly />
         <input name="flow" type="hidden" value="reset-verification" />
-        <button className="auth-button" type="submit" disabled={submitting}>
+        <Button type="submit" className="w-full" disabled={submitting}>
           Set new password
-        </button>
-        <button
+        </Button>
+        <Button
           type="button"
-          className="auth-button bg-white text-gray-900 border border-gray-200 hover:bg-gray-50"
+          variant="outline"
+          className="w-full"
           onClick={() => setStep("forgot")}
         >
           Request a new code
-        </button>
+        </Button>
       </form>
-      <button
-        type="button"
-        className="text-center text-sm text-primary hover:text-primary-hover hover:underline font-medium cursor-pointer"
-        onClick={onBack}
-      >
+      <Button type="button" variant="link" className="w-full" onClick={onBack}>
         Back to sign in
-      </button>
+      </Button>
     </div>
   );
 }

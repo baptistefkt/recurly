@@ -2,6 +2,9 @@
 import { useAuthActions } from "@convex-dev/auth/react";
 import { useState } from "react";
 import { toast } from "sonner";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 
 export function SignInForm({
   onForgotPassword,
@@ -13,7 +16,7 @@ export function SignInForm({
   const [submitting, setSubmitting] = useState(false);
 
   return (
-    <div className="w-full">
+    <div className="w-full flex flex-col gap-form-field">
       <form
         className="flex flex-col gap-form-field"
         onSubmit={(e) => {
@@ -36,45 +39,55 @@ export function SignInForm({
           });
         }}
       >
-        <input
-          className="auth-input-field"
-          type="email"
-          name="email"
-          placeholder="Email"
-          required
-        />
-        <input
-          className="auth-input-field"
-          type="password"
-          name="password"
-          placeholder="Password"
-          required
-        />
-        <button className="auth-button" type="submit" disabled={submitting}>
+        <div className="space-y-2">
+          <Label htmlFor="signin-email">Email</Label>
+          <Input
+            id="signin-email"
+            type="email"
+            name="email"
+            placeholder="you@example.com"
+            required
+            autoComplete="email"
+          />
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="signin-password">Password</Label>
+          <Input
+            id="signin-password"
+            type="password"
+            name="password"
+            placeholder="••••••••"
+            required
+            autoComplete={flow === "signIn" ? "current-password" : "new-password"}
+          />
+        </div>
+        <Button type="submit" className="w-full" disabled={submitting}>
           {flow === "signIn" ? "Sign in" : "Sign up"}
-        </button>
-        <div className="text-center text-sm text-secondary">
+        </Button>
+        <div className="text-center text-sm text-muted-foreground">
           <span>
             {flow === "signIn"
               ? "Don't have an account? "
               : "Already have an account? "}
           </span>
-          <button
+          <Button
             type="button"
-            className="text-primary hover:text-primary-hover hover:underline font-medium cursor-pointer"
+            variant="link"
+            className="h-auto p-0 text-primary"
             onClick={() => setFlow(flow === "signIn" ? "signUp" : "signIn")}
           >
             {flow === "signIn" ? "Sign up instead" : "Sign in instead"}
-          </button>
+          </Button>
         </div>
         {flow === "signIn" && onForgotPassword ? (
-          <button
+          <Button
             type="button"
-            className="text-center text-sm text-primary hover:text-primary-hover hover:underline font-medium cursor-pointer w-full"
+            variant="link"
+            className="w-full h-auto text-primary"
             onClick={onForgotPassword}
           >
             Forgot password?
-          </button>
+          </Button>
         ) : null}
       </form>
     </div>

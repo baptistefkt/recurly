@@ -13,8 +13,11 @@ import type * as auth from "../auth.js";
 import type * as completions from "../completions.js";
 import type * as email from "../email.js";
 import type * as http from "../http.js";
+import type * as invites from "../invites.js";
 import type * as router from "../router.js";
 import type * as tasks from "../tasks.js";
+import type * as teamAccess from "../teamAccess.js";
+import type * as teams from "../teams.js";
 
 import type {
   ApiFromModules,
@@ -28,8 +31,11 @@ declare const fullApi: ApiFromModules<{
   completions: typeof completions;
   email: typeof email;
   http: typeof http;
+  invites: typeof invites;
   router: typeof router;
   tasks: typeof tasks;
+  teamAccess: typeof teamAccess;
+  teams: typeof teams;
 }>;
 
 /**

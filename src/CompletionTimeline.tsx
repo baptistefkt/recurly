@@ -1,17 +1,21 @@
 import { useMutation } from "convex/react";
+import { Check, X } from "lucide-react";
 import { api } from "../convex/_generated/api";
 import { Id } from "../convex/_generated/dataModel";
 import { toast } from "sonner";
+import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 
 type Completion = {
   _id: Id<"completions">;
   completedAt: number;
   note?: string;
+  completerDisplayName?: string;
 };
 
 export function CompletionTimeline({
   completions,
-  taskId,
+  taskId: _taskId,
 }: {
   completions: Completion[];
   taskId: Id<"tasks">;
@@ -20,28 +24,51 @@ export function CompletionTimeline({
 
   return (
     <div>
-      <h3 className="text-sm font-medium text-gray-700 mb-3">
-        History {completions.length > 0 && <span className="text-gray-400 font-normal">({completions.length})</span>}
+      <h3 className="mb-3 text-sm font-medium text-foreground">
+        History{" "}
+        {completions.length > 0 && (
+          <span className="font-normal text-muted-foreground">({completions.length})</span>
+        )}
       </h3>
       {completions.length === 0 ? (
-        <p className="text-sm text-gray-400 text-center py-4">No completions yet</p>
+        <p className="py-4 text-center text-sm text-muted-foreground">No completions yet</p>
       ) : (
         <div className="relative">
-          <div className="absolute left-3 top-0 bottom-0 w-px bg-gray-100" />
+          <div className="absolute bottom-0 left-3 top-0 w-px bg-border" />
           <div className="flex flex-col gap-3">
             {completions.map((c, i) => (
               <div key={c._id} className="flex items-start gap-3 pl-0">
-                <div className={`w-6 h-6 rounded-full flex items-center justify-center flex-shrink-0 z-10 ${
-                  i === 0 ? "bg-gray-900" : "bg-gray-200"
-                }`}>
-                  <svg className={`w-3 h-3 ${i === 0 ? "text-white" : "text-gray-500"}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
-                  </svg>
+                <div
+                  className={cn(
+                    "z-10 flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full",
+                    i === 0 ? "bg-primary" : "bg-muted"
+                  )}
+                >
+                  <Check
+                    className={cn(
+                      "h-3 w-3",
+                      i === 0 ? "text-primary-foreground" : "text-muted-foreground"
+                    )}
+                    strokeWidth={2.5}
+                  />
                 </div>
-                <div className="flex-1 min-w-0">
+                <div className="min-w-0 flex-1">
                   <div className="flex items-center justify-between gap-2">
-                    <span className="text-sm text-gray-700">{formatDate(c.completedAt)}</span>
-                    <button
+                    <span className="text-sm text-foreground">
+                      {formatDate(c.completedAt)}
+                      {c.completerDisplayName ? (
+                        <span className="font-normal text-muted-foreground">
+                          {" "}
+                          · {c.completerDisplayName}
+                        </span>
+                      ) : null}
+                    </span>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      className="h-7 w-7 shrink-0 text-muted-foreground hover:text-destructive"
+                      title="Remove completion"
                       onClick={async () => {
                         try {
                           await deleteCompletion({ completionId: c._id });
@@ -50,15 +77,11 @@ export function CompletionTimeline({
                           toast.error("Failed to remove");
                         }
                       }}
-                      className="text-gray-300 hover:text-red-400 transition-colors flex-shrink-0"
-                      title="Remove completion"
                     >
-                      <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                      </svg>
-                    </button>
+                      <X className="h-3.5 w-3.5" />
+                    </Button>
                   </div>
-                  {c.note && <p className="text-xs text-gray-400 mt-0.5">{c.note}</p>}
+                  {c.note && <p className="mt-0.5 text-xs text-muted-foreground">{c.note}</p>}
                 </div>
               </div>
             ))}
@@ -77,6 +100,7 @@ function formatDate(ts: number): string {
 
   if (days === 0) return "Today, " + d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
   if (days === 1) return "Yesterday, " + d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
-  if (days < 7) return d.toLocaleDateString([], { weekday: "long" }) + ", " + d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+  if (days < 7)
+    return d.toLocaleDateString([], { weekday: "long" }) + ", " + d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
   return d.toLocaleDateString([], { month: "short", day: "numeric", year: "numeric" });
 }
