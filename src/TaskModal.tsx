@@ -20,6 +20,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { DueDateTimeFields } from "@/components/DueDateTimeFields";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -35,7 +36,8 @@ type RecurrenceType =
   | "biweekly"
   | "monthly"
   | "custom"
-  | "weeklyDays";
+  | "weeklyDays"
+  | "once";
 type RecurrenceUnit = "days" | "weeks" | "months";
 const WEEKDAY_OPTIONS = [
   { label: "Mon", value: 1 },
@@ -49,6 +51,13 @@ const WEEKDAY_OPTIONS = [
 
 function effectiveVis(t: { visibility?: "personal" | "team" } | null | undefined) {
   return t?.visibility ?? "personal";
+}
+
+function defaultDueAtMs() {
+  const d = new Date();
+  d.setMinutes(0, 0, 0);
+  d.setHours(d.getHours() + 1);
+  return d.getTime();
 }
 
 function mergeTagIntoList(list: string[], raw: string): string[] {
@@ -82,6 +91,7 @@ export function TaskModal({
   const [recurrenceInterval, setRecurrenceInterval] = useState(1);
   const [recurrenceUnit, setRecurrenceUnit] = useState<RecurrenceUnit>("weeks");
   const [recurrenceDaysOfWeek, setRecurrenceDaysOfWeek] = useState<number[]>([1]);
+  const [dueAtMs, setDueAtMs] = useState(defaultDueAtMs);
   const [saving, setSaving] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [shareWithTeam, setShareWithTeam] = useState(false);
@@ -133,10 +143,14 @@ export function TaskModal({
       setShareWithTeam(effectiveVis(existingTask) === "team");
       setAssigneeUserIds(existingTask.assigneeUserIds ?? []);
       setTags(existingTask.tags ?? []);
+      if (existingTask.recurrenceType === "once") {
+        setDueAtMs(existingTask.dueAt ?? defaultDueAtMs());
+      }
     } else {
       setShareWithTeam(listMode === "team" && !!activeTeamId);
       setAssigneeUserIds([]);
       setRecurrenceDaysOfWeek([1]);
+      setDueAtMs(defaultDueAtMs());
     }
   }, [existingTask, listMode, activeTeamId]);
 
@@ -166,24 +180,42 @@ export function TaskModal({
     if (!title.trim()) return;
     setSaving(true);
     try {
+      if (recurrenceType === "once") {
+        if (!Number.isFinite(dueAtMs)) {
+          toast.error("Pick a due date and time");
+          setSaving(false);
+          return;
+        }
+      }
+
       const recurrenceFields =
-        recurrenceType === "custom"
+        recurrenceType === "once"
           ? {
-              recurrenceInterval,
-              recurrenceUnit,
+              recurrenceInterval: undefined,
+              recurrenceUnit: undefined,
               recurrenceDaysOfWeek: undefined,
+              dueAt: dueAtMs,
             }
-          : recurrenceType === "weeklyDays"
+          : recurrenceType === "custom"
             ? {
-                recurrenceInterval: undefined,
-                recurrenceUnit: undefined,
-                recurrenceDaysOfWeek,
-              }
-            : {
-                recurrenceInterval: undefined,
-                recurrenceUnit: undefined,
+                recurrenceInterval,
+                recurrenceUnit,
                 recurrenceDaysOfWeek: undefined,
-              };
+                dueAt: undefined,
+              }
+            : recurrenceType === "weeklyDays"
+              ? {
+                  recurrenceInterval: undefined,
+                  recurrenceUnit: undefined,
+                  recurrenceDaysOfWeek,
+                  dueAt: undefined,
+                }
+              : {
+                  recurrenceInterval: undefined,
+                  recurrenceUnit: undefined,
+                  recurrenceDaysOfWeek: undefined,
+                  dueAt: undefined,
+                };
       if (recurrenceType === "weeklyDays" && recurrenceDaysOfWeek.length === 0) {
         toast.error("Pick at least one weekday");
         setSaving(false);
@@ -405,10 +437,18 @@ export function TaskModal({
             )}
 
             <div className="space-y-2">
-              <Label>Repeats</Label>
+              <Label>{recurrenceType === "once" ? "Due" : "Repeats"}</Label>
               <div className="grid grid-cols-3 gap-2">
                 {(
-                  ["daily", "weekly", "biweekly", "monthly", "custom", "weeklyDays"] as RecurrenceType[]
+                  [
+                    "daily",
+                    "weekly",
+                    "biweekly",
+                    "monthly",
+                    "custom",
+                    "weeklyDays",
+                    "once",
+                  ] as RecurrenceType[]
                 ).map((r) => (
                   <Button
                     key={r}
@@ -416,7 +456,10 @@ export function TaskModal({
                     variant={recurrenceType === r ? "default" : "outline"}
                     size="sm"
                     className="capitalize"
-                    onClick={() => setRecurrenceType(r)}
+                    onClick={() => {
+                      setRecurrenceType(r);
+                      if (r === "once") setDueAtMs((prev) => (Number.isFinite(prev) ? prev : defaultDueAtMs()));
+                    }}
                   >
                     {r === "biweekly"
                       ? "2 wk"
@@ -424,10 +467,19 @@ export function TaskModal({
                         ? "Custom"
                         : r === "weeklyDays"
                           ? "Days"
-                          : r}
+                          : r === "once"
+                            ? "One-time"
+                            : r}
                   </Button>
                 ))}
               </div>
+              {recurrenceType === "once" && (
+                <DueDateTimeFields
+                  className="mt-2"
+                  valueMs={dueAtMs}
+                  onChange={setDueAtMs}
+                />
+              )}
               {recurrenceType === "weeklyDays" && (
                 <div className="mt-2 space-y-2">
                   <span className="text-sm text-muted-foreground">On these days</span>

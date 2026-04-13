@@ -15,6 +15,7 @@ export function computeNextDue(
   task: Pick<
     Doc<"tasks">,
     | "recurrenceType"
+    | "dueAt"
     | "recurrenceInterval"
     | "recurrenceUnit"
     | "recurrenceDayOfWeek"
@@ -23,6 +24,12 @@ export function computeNextDue(
   lastCompletedAt: number | null,
   taskCreationTime: number
 ): number | null {
+  if (task.recurrenceType === "once") {
+    if (lastCompletedAt !== null) return null;
+    const at = task.dueAt;
+    return at !== undefined && Number.isFinite(at) ? at : null;
+  }
+
   const base = lastCompletedAt ?? taskCreationTime;
   const d = new Date(base);
 

@@ -52,12 +52,16 @@ export const markComplete = mutation({
     const task = await ctx.db.get(args.taskId);
     if (!task) throw new Error("Not found");
     await assertCanAccessTask(ctx, task, userId);
-    return await ctx.db.insert("completions", {
+    const id = await ctx.db.insert("completions", {
       taskId: args.taskId,
       userId,
       completedAt: args.completedAt ?? Date.now(),
       note: args.note,
     });
+    if (task.recurrenceType === "once") {
+      await ctx.db.patch(args.taskId, { isArchived: true });
+    }
+    return id;
   },
 });
 
@@ -75,5 +79,14 @@ export const deleteCompletion = mutation({
     const isTaskCreator = task.userId === userId;
     if (!isCompleter && !isTaskCreator) throw new Error("Not allowed");
     await ctx.db.delete(args.completionId);
+    if (task.recurrenceType === "once") {
+      const remaining = await ctx.db
+        .query("completions")
+        .withIndex("by_task", (q) => q.eq("taskId", task._id))
+        .first();
+      if (remaining === null) {
+        await ctx.db.patch(task._id, { isArchived: false });
+      }
+    }
   },
 });

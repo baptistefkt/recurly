@@ -15,6 +15,16 @@ const recurrenceUnitValidator = v.optional(
 );
 const recurrenceDaysOfWeekValidator = v.optional(v.array(v.number()));
 
+const recurrenceTypeValidator = v.union(
+  v.literal("daily"),
+  v.literal("weekly"),
+  v.literal("biweekly"),
+  v.literal("monthly"),
+  v.literal("custom"),
+  v.literal("weeklyDays"),
+  v.literal("once")
+);
+
 const visibilityValidator = v.union(
   v.literal("personal"),
   v.literal("team")
@@ -112,6 +122,12 @@ async function collectAccessibleTaskDocs(
     for (const t of list) byId.set(t._id, t);
   }
   return [...byId.values()];
+}
+
+function assertFiniteDueAtForOnce(dueAt: number | undefined): asserts dueAt is number {
+  if (dueAt === undefined || !Number.isFinite(dueAt)) {
+    throw new Error("One-time tasks need a due date and time");
+  }
 }
 
 async function enrichSingleTask(
@@ -287,14 +303,8 @@ export const create = mutation({
   args: {
     title: v.string(),
     description: v.optional(v.string()),
-    recurrenceType: v.union(
-      v.literal("daily"),
-      v.literal("weekly"),
-      v.literal("biweekly"),
-      v.literal("monthly"),
-      v.literal("custom"),
-      v.literal("weeklyDays")
-    ),
+    recurrenceType: recurrenceTypeValidator,
+    dueAt: v.optional(v.number()),
     recurrenceInterval: v.optional(v.number()),
     recurrenceUnit: recurrenceUnitValidator,
     recurrenceDayOfWeek: v.optional(v.number()),
@@ -319,6 +329,22 @@ export const create = mutation({
     }
 
     const tags = normalizeTags(args.tags);
+    if (args.recurrenceType === "once") {
+      assertFiniteDueAtForOnce(args.dueAt);
+      return await ctx.db.insert("tasks", {
+        title: args.title.trim(),
+        description: args.description?.trim() || undefined,
+        recurrenceType: "once",
+        dueAt: args.dueAt,
+        userId,
+        isArchived: false,
+        visibility: args.visibility,
+        teamId: args.teamId,
+        assigneeUserIds: args.assigneeUserIds,
+        ...(tags.length > 0 ? { tags } : {}),
+      });
+    }
+
     const recurrenceDaysOfWeek =
       args.recurrenceType === "weeklyDays"
         ? normalizeWeekdays(args.recurrenceDaysOfWeek)
@@ -350,16 +376,8 @@ export const update = mutation({
     taskId: v.id("tasks"),
     title: v.optional(v.string()),
     description: v.optional(v.string()),
-    recurrenceType: v.optional(
-      v.union(
-        v.literal("daily"),
-        v.literal("weekly"),
-        v.literal("biweekly"),
-        v.literal("monthly"),
-        v.literal("custom"),
-        v.literal("weeklyDays")
-      )
-    ),
+    recurrenceType: v.optional(recurrenceTypeValidator),
+    dueAt: v.optional(v.number()),
     recurrenceInterval: v.optional(v.number()),
     recurrenceUnit: recurrenceUnitValidator,
     recurrenceDayOfWeek: v.optional(v.number()),
@@ -396,6 +414,23 @@ export const update = mutation({
       finalPatch.tags = normalizeTags(rest.tags);
     }
     const nextRecurrenceType = rest.recurrenceType ?? task.recurrenceType;
+
+    if (rest.recurrenceType === "once") {
+      const nextDue = rest.dueAt ?? task.dueAt;
+      assertFiniteDueAtForOnce(nextDue);
+      finalPatch.recurrenceType = "once";
+      finalPatch.dueAt = nextDue;
+      finalPatch.recurrenceInterval = undefined;
+      finalPatch.recurrenceUnit = undefined;
+      finalPatch.recurrenceDayOfWeek = undefined;
+      finalPatch.recurrenceDaysOfWeek = undefined;
+    } else if (rest.recurrenceType !== undefined) {
+      finalPatch.dueAt = undefined;
+    } else if (task.recurrenceType === "once" && rest.dueAt !== undefined) {
+      assertFiniteDueAtForOnce(rest.dueAt);
+      finalPatch.dueAt = rest.dueAt;
+    }
+
     if (nextRecurrenceType === "weeklyDays") {
       const nextWeekdays =
         rest.recurrenceDaysOfWeek !== undefined

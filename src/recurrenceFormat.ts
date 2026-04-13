@@ -3,6 +3,7 @@ type RecurrenceFields = {
   recurrenceInterval?: number;
   recurrenceUnit?: string;
   recurrenceDaysOfWeek?: number[];
+  dueAt?: number;
 };
 
 const WEEKDAY_NAMES = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
@@ -19,6 +20,14 @@ function formatWeekdayList(days: number[] | undefined): string {
 
 export function humanizeRecurrence(task: RecurrenceFields): string {
   switch (task.recurrenceType) {
+    case "once": {
+      const at = task.dueAt;
+      if (at === undefined || !Number.isFinite(at)) return "One-time";
+      return `Due ${new Date(at).toLocaleString(undefined, {
+        dateStyle: "medium",
+        timeStyle: "short",
+      })}`;
+    }
     case "daily":
       return "Every day";
     case "weekly":

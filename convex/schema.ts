@@ -49,8 +49,11 @@ const applicationTables = {
       v.literal("biweekly"),
       v.literal("monthly"),
       v.literal("custom"),
-      v.literal("weeklyDays")
+      v.literal("weeklyDays"),
+      v.literal("once")
     ),
+    /** Absolute due instant (epoch ms) when recurrenceType is "once". */
+    dueAt: v.optional(v.number()),
     recurrenceInterval: v.optional(v.number()),
     recurrenceUnit: v.optional(v.union(v.literal("days"), v.literal("weeks"), v.literal("months"))),
     recurrenceDayOfWeek: v.optional(v.number()),

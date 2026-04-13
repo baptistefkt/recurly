@@ -257,7 +257,10 @@ export function TaskDetailModal({
                       </div>
                     </PropertyRow>
 
-                    <PropertyRow icon={Repeat} label="Recurrence">
+                    <PropertyRow
+                      icon={task.recurrenceType === "once" ? CalendarClock : Repeat}
+                      label={task.recurrenceType === "once" ? "Due" : "Recurrence"}
+                    >
                       <div>
                         <p>{humanizeRecurrence(task)}</p>
                         {task.recurrenceType === "custom" && (

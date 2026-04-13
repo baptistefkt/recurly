@@ -22,10 +22,14 @@ import { cn } from "@/lib/utils";
 import { usePushNotifications } from "@/hooks/usePushNotifications";
 import { ReminderSettingsModal } from "./ReminderSettingsModal";
 
-type Tab = "upcoming" | "all" | "archived";
+type Tab = "all" | "upcoming" | "archived";
+
+function isTaskOverdue(task: { nextDueAt: number | null }, nowMs: number): boolean {
+  return task.nextDueAt !== null && task.nextDueAt < nowMs;
+}
 
 export function TaskDashboard() {
-  const [tab, setTab] = useState<Tab>("upcoming");
+  const [tab, setTab] = useState<Tab>("all");
   const [showModal, setShowModal] = useState(false);
   const [editTaskId, setEditTaskId] = useState<Id<"tasks"> | null>(null);
   const [detailTaskId, setDetailTaskId] = useState<Id<"tasks"> | null>(null);
@@ -50,7 +54,9 @@ export function TaskDashboard() {
     if (!tasks) return [];
     if (tab === "archived") return tasks.filter((t) => t.isArchived);
     const active = tasks.filter((t) => !t.isArchived);
-    return [...active].sort((a, b) => {
+    const filtered =
+      tab === "upcoming" ? active.filter((t) => !isTaskOverdue(t, now)) : active;
+    return [...filtered].sort((a, b) => {
       const aNext = a.nextDueAt ?? Infinity;
       const bNext = b.nextDueAt ?? Infinity;
       return aNext - bNext;
@@ -65,9 +71,13 @@ export function TaskDashboard() {
       <header className="sticky top-0 z-20 border-b bg-background">
         <div className="mx-auto flex h-14 max-w-2xl items-center justify-between px-4">
           <div className="flex items-center gap-2">
-            <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-primary">
-              <ClipboardList className="h-4 w-4 text-primary-foreground" />
-            </div>
+            <img
+              src="/icon-192.png"
+              alt=""
+              width={28}
+              height={28}
+              className="h-7 w-7 shrink-0 rounded-lg object-cover"
+            />
             <span className="font-semibold text-foreground">Recurly</span>
           </div>
           <UserMenu
@@ -147,7 +157,7 @@ export function TaskDashboard() {
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <Tabs value={tab} onValueChange={(v) => setTab(v as Tab)}>
             <TabsList className="h-auto w-full justify-start sm:w-auto">
-              {(["upcoming", "all", "archived"] as Tab[]).map((t) => (
+              {(["all", "upcoming", "archived"] as Tab[]).map((t) => (
                 <TabsTrigger key={t} value={t} className="capitalize">
                   {t}
                 </TabsTrigger>
@@ -255,19 +265,25 @@ function StatCard({ label, value, highlight }: { label: string; value: number; h
 }
 
 function EmptyState({ tab, onAdd }: { tab: Tab; onAdd: () => void }) {
+  const title =
+    tab === "archived"
+      ? "No archived tasks"
+      : tab === "upcoming"
+        ? "Nothing upcoming"
+        : "No tasks yet";
+  const subtitle =
+    tab === "archived"
+      ? "Archived tasks will appear here"
+      : tab === "upcoming"
+        ? "You have no on-time tasks due ahead. Open All to see overdue items."
+        : "Add your first recurring task to get started";
   return (
     <div className="flex flex-col items-center justify-center py-16 text-center">
       <div className="mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-muted">
         <ClipboardList className="h-6 w-6 text-muted-foreground" />
       </div>
-      <p className="font-medium text-foreground">
-        {tab === "archived" ? "No archived tasks" : "No tasks yet"}
-      </p>
-      <p className="mt-1 text-sm text-muted-foreground">
-        {tab === "archived"
-          ? "Archived tasks will appear here"
-          : "Add your first recurring task to get started"}
-      </p>
+      <p className="font-medium text-foreground">{title}</p>
+      <p className="mt-1 max-w-sm text-sm text-muted-foreground">{subtitle}</p>
       {tab !== "archived" && (
         <Button className="mt-4" onClick={onAdd}>
           Add Task

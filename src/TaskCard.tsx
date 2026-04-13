@@ -1,5 +1,5 @@
 import { useMutation } from "convex/react";
-import { CalendarDays, Check, Repeat } from "lucide-react";
+import { CalendarClock, CalendarDays, Check, Repeat } from "lucide-react";
 import { api } from "../convex/_generated/api";
 import { Id } from "../convex/_generated/dataModel";
 import { AssigneeAvatarGroup, type TaskAssigneePreview } from "./AssigneeAvatarGroup";
@@ -19,6 +19,7 @@ type TaskWithMeta = {
   recurrenceUnit?: string;
   recurrenceDayOfWeek?: number;
   recurrenceDaysOfWeek?: number[];
+  dueAt?: number;
   isArchived?: boolean;
   visibility?: "personal" | "team";
   teamName?: string | null;
@@ -127,7 +128,11 @@ export function TaskCard({
 
           <div className="mt-auto flex flex-wrap items-center gap-x-3 gap-y-0.5 pt-0.5 text-xs text-muted-foreground">
             <span className="inline-flex items-center gap-1">
-              <Repeat className="h-3.5 w-3.5 shrink-0 opacity-70" aria-hidden />
+              {task.recurrenceType === "once" ? (
+                <CalendarClock className="h-3.5 w-3.5 shrink-0 opacity-70" aria-hidden />
+              ) : (
+                <Repeat className="h-3.5 w-3.5 shrink-0 opacity-70" aria-hidden />
+              )}
               {humanizeRecurrence(task)}
             </span>
             {task.lastCompletedAt ? (
