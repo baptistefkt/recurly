@@ -3,6 +3,10 @@ import { internalMutation, internalQuery } from "./_generated/server";
 import type { Id } from "./_generated/dataModel";
 import { computeNextDue } from "./recurrence";
 
+const MAX_OWNED_TASKS = 500;
+const MAX_MEMBER_TEAMS = 100;
+const MAX_TEAM_TASKS = 500;
+
 export const findPendingRemindersForUser = internalQuery({
   args: {
     userId: v.id("users"),
@@ -15,26 +19,32 @@ export const findPendingRemindersForUser = internalQuery({
   handler: async (ctx, args) => {
     const ownedTasks = await ctx.db
       .query("tasks")
-      .withIndex("by_user", (q) => q.eq("userId", args.userId))
-      .collect();
+      .withIndex("by_user_and_archived", (q) =>
+        q.eq("userId", args.userId).eq("isArchived", false)
+      )
+      .take(MAX_OWNED_TASKS);
 
     const memberRows = await ctx.db
       .query("teamMembers")
       .withIndex("by_user", (q) => q.eq("userId", args.userId))
-      .collect();
+      .take(MAX_MEMBER_TEAMS);
     const teamTaskLists = await Promise.all(
       memberRows.map(async (row) => {
         const teamTasks = await ctx.db
           .query("tasks")
-          .withIndex("by_team", (q) => q.eq("teamId", row.teamId))
-          .collect();
-        return teamTasks.filter((task) => {
-          if (task.isArchived) return false;
-          if ((task.visibility ?? "personal") !== "team") return false;
+          .withIndex("by_team_and_archived", (q) =>
+            q.eq("teamId", row.teamId).eq("isArchived", false)
+          )
+          .take(MAX_TEAM_TASKS);
+        const out = [];
+        for (const task of teamTasks) {
+          if ((task.visibility ?? "personal") !== "team") continue;
           const assignees = task.assigneeUserIds ?? [];
-          if (assignees.length === 0) return task.userId === args.userId;
-          return assignees.includes(args.userId);
-        });
+          if (assignees.length === 0 && task.userId !== args.userId) continue;
+          if (assignees.length > 0 && !assignees.includes(args.userId)) continue;
+          out.push(task);
+        }
+        return out;
       })
     );
 

@@ -79,9 +79,9 @@ export const listTokensByUserId = internalQuery({
 });
 
 export const listUserIdsWithPushTokens = internalQuery({
-  args: {},
-  handler: async (ctx) => {
-    const rows = await ctx.db.query("pushTokens").collect();
+  args: { limit: v.optional(v.number()) },
+  handler: async (ctx, args) => {
+    const rows = await ctx.db.query("pushTokens").take(args.limit ?? 1000);
     const ids = new Set(rows.map((row) => row.userId));
     return [...ids];
   },

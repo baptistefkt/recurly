@@ -39,6 +39,48 @@ function normalizeTags(input: string[] | undefined): string[] {
   return out;
 }
 
+function selectByVisibility(
+  tasks: Doc<"tasks">[],
+  visibility: "personal" | "team"
+): Doc<"tasks">[] {
+  const out: Doc<"tasks">[] = [];
+  for (const task of tasks) {
+    if (effectiveVisibility(task) === visibility) {
+      out.push(task);
+    }
+  }
+  return out;
+}
+
+function selectByArchived(
+  tasks: Doc<"tasks">[],
+  includeArchived: boolean
+): Doc<"tasks">[] {
+  if (includeArchived) return tasks;
+  const out: Doc<"tasks">[] = [];
+  for (const task of tasks) {
+    if (!task.isArchived) out.push(task);
+  }
+  return out;
+}
+
+function selectByTag(tasks: Doc<"tasks">[], tagNeedle: string | undefined): Doc<"tasks">[] {
+  if (!tagNeedle || tagNeedle.length === 0) return tasks;
+  const out: Doc<"tasks">[] = [];
+  for (const task of tasks) {
+    const tags = task.tags ?? [];
+    let matched = false;
+    for (const tag of tags) {
+      if (tag.toLowerCase() === tagNeedle) {
+        matched = true;
+        break;
+      }
+    }
+    if (matched) out.push(task);
+  }
+  return out;
+}
+
 async function collectAccessibleTaskDocs(
   ctx: QueryCtx,
   userId: Id<"users">
@@ -47,7 +89,7 @@ async function collectAccessibleTaskDocs(
     .query("tasks")
     .withIndex("by_user", (q) => q.eq("userId", userId))
     .collect();
-  const personal = mine.filter((t) => effectiveVisibility(t) === "personal");
+  const personal = selectByVisibility(mine, "personal");
 
   const memberRows = await ctx.db
     .query("teamMembers")
@@ -60,7 +102,7 @@ async function collectAccessibleTaskDocs(
         .query("tasks")
         .withIndex("by_team", (q) => q.eq("teamId", row.teamId))
         .collect();
-      return teamTasks.filter((t) => effectiveVisibility(t) === "team");
+      return selectByVisibility(teamTasks, "team");
     })
   );
 
@@ -169,7 +211,7 @@ export const list = query({
         .query("tasks")
         .withIndex("by_user", (q) => q.eq("userId", userId))
         .collect();
-      taskDocs = mine.filter((t) => effectiveVisibility(t) === "personal");
+      taskDocs = selectByVisibility(mine, "personal");
     } else if (args.listMode === "team") {
       if (!args.teamId) return [];
       await assertTeamMember(ctx, args.teamId, userId);
@@ -177,22 +219,15 @@ export const list = query({
         .query("tasks")
         .withIndex("by_team", (q) => q.eq("teamId", args.teamId!))
         .collect();
-      taskDocs = teamTasks.filter((t) => effectiveVisibility(t) === "team");
+      taskDocs = selectByVisibility(teamTasks, "team");
     } else {
       taskDocs = await collectAccessibleTaskDocs(ctx, userId);
     }
 
-    const filtered = includeArchived
-      ? taskDocs
-      : taskDocs.filter((t) => !t.isArchived);
+    const filtered = selectByArchived(taskDocs, includeArchived);
 
     const tagNeedle = args.tagFilter?.trim().toLowerCase();
-    const afterTag =
-      tagNeedle && tagNeedle.length > 0
-        ? filtered.filter((t) =>
-            (t.tags ?? []).some((tag) => tag.toLowerCase() === tagNeedle)
-          )
-        : filtered;
+    const afterTag = selectByTag(filtered, tagNeedle);
 
     return enrichTasks(ctx, afterTag);
   },

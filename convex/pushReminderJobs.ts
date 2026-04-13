@@ -43,7 +43,7 @@ export const dispatchRecurringTaskReminders = internalAction({
 
     const usersWithTokens: Id<"users">[] = await ctx.runQuery(
       internal.pushTokens.listUserIdsWithPushTokens,
-      {}
+      { limit: 1000 }
     );
 
     let checkedUsers = 0;
