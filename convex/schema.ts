@@ -77,6 +77,15 @@ const applicationTables = {
     .index("by_task", ["taskId"])
     .index("by_task_and_time", ["taskId", "completedAt"])
     .index("by_user", ["userId"]),
+
+  pushTokens: defineTable({
+    userId: v.id("users"),
+    token: v.string(),
+    createdAt: v.number(),
+  })
+    .index("by_userId", ["userId"])
+    .index("by_token", ["token"])
+    .index("by_userId_and_token", ["userId", "token"]),
 };
 
 export default defineSchema({

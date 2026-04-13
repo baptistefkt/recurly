@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useQuery } from "convex/react";
-import { ClipboardList, Plus } from "lucide-react";
+import { Bell, ClipboardList, Plus } from "lucide-react";
 import { api } from "../convex/_generated/api";
 import { TaskCard } from "./TaskCard";
 import { TaskModal } from "./TaskModal";
@@ -19,6 +19,8 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
+import { usePushNotifications } from "@/hooks/usePushNotifications";
+import { toast } from "sonner";
 
 type Tab = "upcoming" | "all" | "archived";
 
@@ -32,6 +34,11 @@ export function TaskDashboard() {
   });
   const [createTeamOpen, setCreateTeamOpen] = useState(false);
   const [selectedTag, setSelectedTag] = useState<string | null>(null);
+  const [isSendingPushTest, setIsSendingPushTest] = useState(false);
+  const {
+    status: pushStatus,
+    triggerTestNotification,
+  } = usePushNotifications();
 
   const tagLabels = useQuery(api.tasks.distinctTags, {});
   const tasks = useQuery(
@@ -149,16 +156,42 @@ export function TaskDashboard() {
               ))}
             </TabsList>
           </Tabs>
-          <Button
-            className="shrink-0"
-            onClick={() => {
-              setEditTaskId(null);
-              setShowModal(true);
-            }}
-          >
-            <Plus className="mr-1.5 h-4 w-4" />
-            Add Task
-          </Button>
+          <div className="flex shrink-0 items-center gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              disabled={pushStatus !== "ready" || isSendingPushTest}
+              onClick={async () => {
+                try {
+                  setIsSendingPushTest(true);
+                  await triggerTestNotification(
+                    "Recurly test notification",
+                    "Push notifications are configured correctly."
+                  );
+                  toast.success("Test push sent. Check your notifications.");
+                } catch (err) {
+                  const message =
+                    err instanceof Error ? err.message : "Failed to send test push.";
+                  toast.error(message);
+                } finally {
+                  setIsSendingPushTest(false);
+                }
+              }}
+            >
+              <Bell className="mr-1.5 h-4 w-4" />
+              Test Push
+            </Button>
+            <Button
+              className="shrink-0"
+              onClick={() => {
+                setEditTaskId(null);
+                setShowModal(true);
+              }}
+            >
+              <Plus className="mr-1.5 h-4 w-4" />
+              Add Task
+            </Button>
+          </div>
         </div>
 
         {tasks === undefined ? (

@@ -48,3 +48,85 @@ User-defined HTTP routes are registered in `convex/router.ts` and wired from `co
 - Convex: [Overview](https://docs.convex.dev/understanding/), [Hosting and deployment](https://docs.convex.dev/production/), [Best practices](https://docs.convex.dev/understanding/best-practices/)
 - Local development: `npm run dev` (frontend + backend)
 - Production build: `npm run build` (frontend; deploy Convex functions and env via the Convex CLI/dashboard as usual)
+
+## Web push notifications (FCM + Convex)
+
+This app includes browser push notifications using Firebase Cloud Messaging.
+
+### 1) Firebase setup
+
+1. Create a Firebase project.
+2. Enable **Cloud Messaging**.
+3. In Project Settings, collect your web app config:
+   - `apiKey`
+   - `authDomain`
+   - `projectId`
+   - `storageBucket`
+   - `messagingSenderId`
+   - `appId`
+4. In Cloud Messaging, generate a **Web Push certificate key pair** and copy the **public VAPID key**.
+5. Create a Firebase service account and copy:
+   - `project_id`
+   - `client_email`
+   - `private_key`
+
+### 2) Environment variables
+
+Copy `.env.example` to `.env.local` and fill all `VITE_FIREBASE_*` values.
+
+Set server-side Firebase Admin credentials in Convex:
+
+```bash
+npx convex env set FIREBASE_PROJECT_ID "<project_id>"
+npx convex env set FIREBASE_CLIENT_EMAIL "<client_email>"
+npx convex env set FIREBASE_PRIVATE_KEY "-----BEGIN PRIVATE KEY-----\n...\n-----END PRIVATE KEY-----\n"
+```
+
+### 3) Service worker
+
+`public/firebase-messaging-sw.js` handles background notifications.  
+It is registered by the app and initialized with your Firebase config.
+
+### 4) Convex API added
+
+- `pushTokens` table in `convex/schema.ts`
+- `convex/pushTokens.ts`
+  - `savePushToken`
+  - `removePushToken`
+  - `myPushTokens`
+- `convex/pushNotifications.ts`
+  - `sendPushNotification` (internal Node action, Firebase Admin multicast)
+- `convex/pushNotificationTriggers.ts`
+  - `triggerMyPushNotification` (manual test trigger mutation)
+
+### 5) Frontend integration
+
+- `src/lib/firebaseMessaging.ts` initializes FCM in the browser.
+- `src/hooks/usePushNotifications.ts`:
+  - requests permission
+  - registers service worker
+  - gets FCM token
+  - saves token in Convex
+  - listens for foreground messages and shows toast notifications
+- `TaskDashboard` now includes a **Test Push** button for manual validation.
+
+### 6) Running locally / HTTPS
+
+Push notifications require a secure context:
+
+- Production/staging must use HTTPS.
+- Localhost works for development in modern browsers.
+
+Then run:
+
+```bash
+npm run dev
+```
+
+### 7) Testing checklist
+
+- Browser asks for notification permission.
+- Token is generated and appears in `pushTokens`.
+- Clicking **Test Push** sends a notification.
+- Foreground message appears as a toast.
+- Background message appears as system notification when the app is not focused.
