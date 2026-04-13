@@ -78,6 +78,15 @@ export const listTokensByUserId = internalQuery({
   },
 });
 
+export const listUserIdsWithPushTokens = internalQuery({
+  args: {},
+  handler: async (ctx) => {
+    const rows = await ctx.db.query("pushTokens").collect();
+    const ids = new Set(rows.map((row) => row.userId));
+    return [...ids];
+  },
+});
+
 export const deleteTokenByValue = internalMutation({
   args: { token: v.string() },
   handler: async (ctx, args) => {

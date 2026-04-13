@@ -96,8 +96,6 @@ It is registered by the app and initialized with your Firebase config.
   - `myPushTokens`
 - `convex/pushNotifications.ts`
   - `sendPushNotification` (internal Node action, Firebase Admin multicast)
-- `convex/pushNotificationTriggers.ts`
-  - `triggerMyPushNotification` (manual test trigger mutation)
 
 ### 5) Frontend integration
 
@@ -108,7 +106,29 @@ It is registered by the app and initialized with your Firebase config.
   - gets FCM token
   - saves token in Convex
   - listens for foreground messages and shows toast notifications
-- `TaskDashboard` now includes a **Test Push** button for manual validation.
+
+### 5.1) Automatic recurring task reminders
+
+The backend runs a cron every 15 minutes and sends reminders to users with push tokens.
+
+- **Due soon reminder**: sent before due time (default: 30 minutes).
+- **Overdue reminder**: sent after due time (default delay: 30 minutes, max window: 24h).
+- **De-duplication**: each reminder type is sent at most once per task recurrence cycle.
+- **Team behavior**:
+  - for team tasks with assignees, reminders go to assignees;
+  - for team tasks without assignees, reminders go to the task creator.
+
+### 5.2) Per-user reminder settings
+
+Each user can configure reminder behavior from **User menu → Reminder settings**:
+
+- Enable/disable push reminders
+- Due soon lead time (minutes)
+- Overdue reminders on/off
+- Overdue delay and overdue window
+- Quiet hours start/end (local hour)
+
+Quiet hours are evaluated using the browser timezone offset captured when saving settings.
 
 ### 6) Running locally / HTTPS
 
@@ -127,6 +147,5 @@ npm run dev
 
 - Browser asks for notification permission.
 - Token is generated and appears in `pushTokens`.
-- Clicking **Test Push** sends a notification.
 - Foreground message appears as a toast.
 - Background message appears as system notification when the app is not focused.

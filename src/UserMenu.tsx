@@ -1,5 +1,5 @@
 import { useAuthActions } from "@convex-dev/auth/react";
-import { LogOut, Plus, Users } from "lucide-react";
+import { Bell, LogOut, Plus, Users } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import {
@@ -23,11 +23,13 @@ export function UserMenu({
   user,
   onAddTask,
   onNewTeam,
+  onReminderSettings,
   className,
 }: {
   user: UserFields | null | undefined;
   onAddTask: () => void;
   onNewTeam: () => void;
+  onReminderSettings: () => void;
   className?: string;
 }) {
   const { signOut } = useAuthActions();
@@ -68,6 +70,10 @@ export function UserMenu({
         <DropdownMenuItem onClick={onNewTeam}>
           <Users />
           New team
+        </DropdownMenuItem>
+        <DropdownMenuItem onClick={onReminderSettings}>
+          <Bell />
+          Reminder settings
         </DropdownMenuItem>
         <DropdownMenuSeparator />
         <DropdownMenuItem onClick={() => void signOut()}>

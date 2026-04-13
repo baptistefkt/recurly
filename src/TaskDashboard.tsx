@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useQuery } from "convex/react";
-import { Bell, ClipboardList, Plus } from "lucide-react";
+import { ClipboardList, Plus } from "lucide-react";
 import { api } from "../convex/_generated/api";
 import { TaskCard } from "./TaskCard";
 import { TaskModal } from "./TaskModal";
@@ -20,7 +20,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
 import { usePushNotifications } from "@/hooks/usePushNotifications";
-import { toast } from "sonner";
+import { ReminderSettingsModal } from "./ReminderSettingsModal";
 
 type Tab = "upcoming" | "all" | "archived";
 
@@ -34,11 +34,8 @@ export function TaskDashboard() {
   });
   const [createTeamOpen, setCreateTeamOpen] = useState(false);
   const [selectedTag, setSelectedTag] = useState<string | null>(null);
-  const [isSendingPushTest, setIsSendingPushTest] = useState(false);
-  const {
-    status: pushStatus,
-    triggerTestNotification,
-  } = usePushNotifications();
+  const [showReminderSettings, setShowReminderSettings] = useState(false);
+  usePushNotifications();
 
   const tagLabels = useQuery(api.tasks.distinctTags, {});
   const tasks = useQuery(
@@ -80,6 +77,7 @@ export function TaskDashboard() {
               setShowModal(true);
             }}
             onNewTeam={() => setCreateTeamOpen(true)}
+            onReminderSettings={() => setShowReminderSettings(true)}
           />
         </div>
       </header>
@@ -156,42 +154,16 @@ export function TaskDashboard() {
               ))}
             </TabsList>
           </Tabs>
-          <div className="flex shrink-0 items-center gap-2">
-            <Button
-              type="button"
-              variant="outline"
-              disabled={pushStatus !== "ready" || isSendingPushTest}
-              onClick={async () => {
-                try {
-                  setIsSendingPushTest(true);
-                  await triggerTestNotification(
-                    "Recurly test notification",
-                    "Push notifications are configured correctly."
-                  );
-                  toast.success("Test push sent. Check your notifications.");
-                } catch (err) {
-                  const message =
-                    err instanceof Error ? err.message : "Failed to send test push.";
-                  toast.error(message);
-                } finally {
-                  setIsSendingPushTest(false);
-                }
-              }}
-            >
-              <Bell className="mr-1.5 h-4 w-4" />
-              Test Push
-            </Button>
-            <Button
-              className="shrink-0"
-              onClick={() => {
-                setEditTaskId(null);
-                setShowModal(true);
-              }}
-            >
-              <Plus className="mr-1.5 h-4 w-4" />
-              Add Task
-            </Button>
-          </div>
+          <Button
+            className="shrink-0"
+            onClick={() => {
+              setEditTaskId(null);
+              setShowModal(true);
+            }}
+          >
+            <Plus className="mr-1.5 h-4 w-4" />
+            Add Task
+          </Button>
         </div>
 
         {tasks === undefined ? (
@@ -251,6 +223,10 @@ export function TaskDashboard() {
           }}
         />
       )}
+      <ReminderSettingsModal
+        open={showReminderSettings}
+        onOpenChange={setShowReminderSettings}
+      />
     </div>
   );
 }

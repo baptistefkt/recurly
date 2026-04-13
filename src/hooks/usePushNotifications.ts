@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { useMutation } from "convex/react";
 import { toast } from "sonner";
 import { api } from "../../convex/_generated/api";
@@ -25,7 +25,6 @@ type UsePushNotificationsResult = {
   permission: NotificationPermission | null;
   token: string | null;
   error: string | null;
-  triggerTestNotification: (title: string, body: string) => Promise<void>;
 };
 
 async function waitForActiveServiceWorker(
@@ -86,9 +85,6 @@ function formatPushSetupError(err: unknown): string {
 export function usePushNotifications(): UsePushNotificationsResult {
   const savePushToken = useMutation(api.pushTokens.savePushToken);
   const removePushToken = useMutation(api.pushTokens.removePushToken);
-  const triggerMyPushNotification = useMutation(
-    api.pushNotificationTriggers.triggerMyPushNotification
-  );
 
   const [status, setStatus] = useState<PushNotificationStatus>("idle");
   const [permission, setPermission] = useState<NotificationPermission | null>(
@@ -202,12 +198,5 @@ export function usePushNotifications(): UsePushNotificationsResult {
     };
   }, [removePushToken, savePushToken]);
 
-  const triggerTestNotification = useCallback(
-    async (title: string, body: string) => {
-      await triggerMyPushNotification({ title, body });
-    },
-    [triggerMyPushNotification]
-  );
-
-  return { status, permission, token, error, triggerTestNotification };
+  return { status, permission, token, error };
 }

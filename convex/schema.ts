@@ -86,6 +86,22 @@ const applicationTables = {
     .index("by_userId", ["userId"])
     .index("by_token", ["token"])
     .index("by_userId_and_token", ["userId", "token"]),
+
+  taskReminderLog: defineTable({
+    userId: v.id("users"),
+    taskId: v.id("tasks"),
+    reminderType: v.union(v.literal("due_soon"), v.literal("overdue")),
+    dueAt: v.number(),
+    sentAt: v.number(),
+  })
+    .index("by_userId", ["userId"])
+    .index("by_sentAt", ["sentAt"])
+    .index("by_userId_and_taskId_and_reminderType_and_dueAt", [
+      "userId",
+      "taskId",
+      "reminderType",
+      "dueAt",
+    ]),
 };
 
 export default defineSchema({
@@ -103,6 +119,15 @@ export default defineSchema({
     taskListScope: v.optional(
       v.union(v.literal("personal"), v.literal("all"), v.literal("team"))
     ),
+    pushRemindersEnabled: v.optional(v.boolean()),
+    pushReminderDueSoonMinutes: v.optional(v.number()),
+    pushReminderOverdueEnabled: v.optional(v.boolean()),
+    pushReminderOverdueDelayMinutes: v.optional(v.number()),
+    pushReminderMaxOverdueHours: v.optional(v.number()),
+    pushReminderQuietHoursEnabled: v.optional(v.boolean()),
+    pushReminderQuietStartHour: v.optional(v.number()),
+    pushReminderQuietEndHour: v.optional(v.number()),
+    pushReminderTimezoneOffsetMinutes: v.optional(v.number()),
   })
     .index("email", ["email"])
     .index("phone", ["phone"]),
