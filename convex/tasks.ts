@@ -1,7 +1,7 @@
 import { v } from "convex/values";
 import { mutation, query, type QueryCtx } from "./_generated/server";
 import { getAuthUserId } from "@convex-dev/auth/server";
-import type { Doc } from "./_generated/dataModel";
+import type { Doc, Id } from "./_generated/dataModel";
 import {
   assertCanAccessTask,
   assertTeamMember,
@@ -12,41 +12,160 @@ import {
 const recurrenceUnitValidator = v.optional(
   v.union(v.literal("days"), v.literal("weeks"), v.literal("months"))
 );
+const recurrenceDaysOfWeekValidator = v.optional(v.array(v.number()));
 
 const visibilityValidator = v.union(
   v.literal("personal"),
   v.literal("team")
 );
 
-async function enrichTasks(ctx: QueryCtx, tasks: Doc<"tasks">[]) {
-  return Promise.all(
-    tasks.map(async (task) => {
-      const lastCompletion = await ctx.db
-        .query("completions")
-        .withIndex("by_task_and_time", (q) => q.eq("taskId", task._id))
-        .order("desc")
-        .first();
+const MAX_TAG_LEN = 40;
+const MAX_TAG_COUNT = 20;
 
-      const completionCount = await ctx.db
-        .query("completions")
-        .withIndex("by_task", (q) => q.eq("taskId", task._id))
+function normalizeTags(input: string[] | undefined): string[] {
+  if (!input?.length) return [];
+  const seen = new Set<string>();
+  const out: string[] = [];
+  for (const raw of input) {
+    const t = raw.trim().slice(0, MAX_TAG_LEN);
+    if (!t) continue;
+    const key = t.toLowerCase();
+    if (seen.has(key)) continue;
+    seen.add(key);
+    out.push(t);
+    if (out.length >= MAX_TAG_COUNT) break;
+  }
+  return out;
+}
+
+function normalizeWeekdays(input: number[] | undefined): number[] {
+  if (!input?.length) return [];
+  const set = new Set<number>();
+  for (const raw of input) {
+    if (!Number.isInteger(raw)) continue;
+    if (raw < 0 || raw > 6) continue;
+    set.add(raw);
+  }
+  return [...set].sort((a, b) => a - b);
+}
+
+async function collectAccessibleTaskDocs(
+  ctx: QueryCtx,
+  userId: Id<"users">
+): Promise<Doc<"tasks">[]> {
+  const mine = await ctx.db
+    .query("tasks")
+    .withIndex("by_user", (q) => q.eq("userId", userId))
+    .collect();
+  const personal = mine.filter((t) => effectiveVisibility(t) === "personal");
+
+  const memberRows = await ctx.db
+    .query("teamMembers")
+    .withIndex("by_user", (q) => q.eq("userId", userId))
+    .collect();
+
+  const teamTaskLists = await Promise.all(
+    memberRows.map(async (row) => {
+      const teamTasks = await ctx.db
+        .query("tasks")
+        .withIndex("by_team", (q) => q.eq("teamId", row.teamId))
         .collect();
-
-      return {
-        ...task,
-        lastCompletedAt: lastCompletion?.completedAt ?? null,
-        completionCount: completionCount.length,
-        nextDueAt: computeNextDue(task, lastCompletion?.completedAt ?? null),
-      };
+      return teamTasks.filter((t) => effectiveVisibility(t) === "team");
     })
   );
+
+  const byId = new Map<string, Doc<"tasks">>();
+  for (const t of personal) byId.set(t._id, t);
+  for (const list of teamTaskLists) {
+    for (const t of list) byId.set(t._id, t);
+  }
+  return [...byId.values()];
+}
+
+async function enrichSingleTask(
+  ctx: QueryCtx,
+  task: Doc<"tasks">,
+  userById: Map<Id<"users">, Doc<"users"> | null>
+) {
+  const lastCompletion = await ctx.db
+    .query("completions")
+    .withIndex("by_task_and_time", (q) => q.eq("taskId", task._id))
+    .order("desc")
+    .first();
+
+  const completionRows = await ctx.db
+    .query("completions")
+    .withIndex("by_task", (q) => q.eq("taskId", task._id))
+    .collect();
+
+  const assignees =
+    task.assigneeUserIds?.map((uid) => {
+      const u = userById.get(uid);
+      return {
+        userId: uid,
+        name: u?.name ?? null,
+        email: u?.email ?? null,
+        image: u?.image ?? null,
+      };
+    }) ?? [];
+
+  const creatorUser = userById.get(task.userId);
+  const createdBy = {
+    userId: task.userId,
+    name: creatorUser?.name ?? null,
+    email: creatorUser?.email ?? null,
+    image: creatorUser?.image ?? null,
+  };
+
+  let teamName: string | null = null;
+  if (task.teamId) {
+    const team = await ctx.db.get(task.teamId);
+    teamName = team?.name ?? null;
+  }
+
+  return {
+    ...task,
+    lastCompletedAt: lastCompletion?.completedAt ?? null,
+    completionCount: completionRows.length,
+    nextDueAt: computeNextDue(
+      task,
+      lastCompletion?.completedAt ?? null,
+      task._creationTime
+    ),
+    assignees,
+    createdBy,
+    teamName,
+  };
+}
+
+async function enrichTasks(ctx: QueryCtx, tasks: Doc<"tasks">[]) {
+  const userIdSet = new Set<Id<"users">>();
+  for (const t of tasks) {
+    userIdSet.add(t.userId);
+    for (const id of t.assigneeUserIds ?? []) {
+      userIdSet.add(id);
+    }
+  }
+  const userById = new Map<Id<"users">, Doc<"users"> | null>();
+  await Promise.all(
+    [...userIdSet].map(async (id) => {
+      userById.set(id, await ctx.db.get(id));
+    })
+  );
+
+  return Promise.all(tasks.map((task) => enrichSingleTask(ctx, task, userById)));
 }
 
 export const list = query({
   args: {
     includeArchived: v.optional(v.boolean()),
-    listMode: v.union(v.literal("personal"), v.literal("team")),
+    listMode: v.union(
+      v.literal("personal"),
+      v.literal("team"),
+      v.literal("all")
+    ),
     teamId: v.optional(v.id("teams")),
+    tagFilter: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
     const userId = await getAuthUserId(ctx);
@@ -61,7 +180,7 @@ export const list = query({
         .withIndex("by_user", (q) => q.eq("userId", userId))
         .collect();
       taskDocs = mine.filter((t) => effectiveVisibility(t) === "personal");
-    } else {
+    } else if (args.listMode === "team") {
       if (!args.teamId) return [];
       await assertTeamMember(ctx, args.teamId, userId);
       const teamTasks = await ctx.db
@@ -69,13 +188,45 @@ export const list = query({
         .withIndex("by_team", (q) => q.eq("teamId", args.teamId!))
         .collect();
       taskDocs = teamTasks.filter((t) => effectiveVisibility(t) === "team");
+    } else {
+      taskDocs = await collectAccessibleTaskDocs(ctx, userId);
     }
 
     const filtered = includeArchived
       ? taskDocs
       : taskDocs.filter((t) => !t.isArchived);
 
-    return enrichTasks(ctx, filtered);
+    const tagNeedle = args.tagFilter?.trim().toLowerCase();
+    const afterTag =
+      tagNeedle && tagNeedle.length > 0
+        ? filtered.filter((t) =>
+            (t.tags ?? []).some((tag) => tag.toLowerCase() === tagNeedle)
+          )
+        : filtered;
+
+    return enrichTasks(ctx, afterTag);
+  },
+});
+
+export const distinctTags = query({
+  args: {},
+  handler: async (ctx) => {
+    const userId = await getAuthUserId(ctx);
+    if (!userId) return [];
+
+    const taskDocs = await collectAccessibleTaskDocs(ctx, userId);
+    const canonToDisplay = new Map<string, string>();
+    for (const task of taskDocs) {
+      for (const tag of task.tags ?? []) {
+        const t = tag.trim().slice(0, MAX_TAG_LEN);
+        if (!t) continue;
+        const key = t.toLowerCase();
+        if (!canonToDisplay.has(key)) canonToDisplay.set(key, t);
+      }
+    }
+    const labels = [...canonToDisplay.values()];
+    labels.sort((a, b) => a.toLowerCase().localeCompare(b.toLowerCase()));
+    return labels;
   },
 });
 
@@ -91,7 +242,19 @@ export const get = query({
     } catch {
       return null;
     }
-    return task;
+
+    const userIdSet = new Set<Id<"users">>([task.userId]);
+    for (const id of task.assigneeUserIds ?? []) {
+      userIdSet.add(id);
+    }
+    const userById = new Map<Id<"users">, Doc<"users"> | null>();
+    await Promise.all(
+      [...userIdSet].map(async (id) => {
+        userById.set(id, await ctx.db.get(id));
+      })
+    );
+
+    return enrichSingleTask(ctx, task, userById);
   },
 });
 
@@ -104,15 +267,17 @@ export const create = mutation({
       v.literal("weekly"),
       v.literal("biweekly"),
       v.literal("monthly"),
-      v.literal("custom")
+      v.literal("custom"),
+      v.literal("weeklyDays")
     ),
     recurrenceInterval: v.optional(v.number()),
     recurrenceUnit: recurrenceUnitValidator,
     recurrenceDayOfWeek: v.optional(v.number()),
-    color: v.optional(v.string()),
+    recurrenceDaysOfWeek: recurrenceDaysOfWeekValidator,
     visibility: visibilityValidator,
     teamId: v.optional(v.id("teams")),
     assigneeUserIds: v.optional(v.array(v.id("users"))),
+    tags: v.optional(v.array(v.string())),
   },
   handler: async (ctx, args) => {
     const userId = await getAuthUserId(ctx);
@@ -128,6 +293,14 @@ export const create = mutation({
         throw new Error("Personal tasks cannot have assignees");
     }
 
+    const tags = normalizeTags(args.tags);
+    const recurrenceDaysOfWeek =
+      args.recurrenceType === "weeklyDays"
+        ? normalizeWeekdays(args.recurrenceDaysOfWeek)
+        : [];
+    if (args.recurrenceType === "weeklyDays" && recurrenceDaysOfWeek.length === 0) {
+      throw new Error("Pick at least one weekday");
+    }
     return await ctx.db.insert("tasks", {
       title: args.title.trim(),
       description: args.description?.trim() || undefined,
@@ -135,12 +308,14 @@ export const create = mutation({
       recurrenceInterval: args.recurrenceInterval,
       recurrenceUnit: args.recurrenceUnit,
       recurrenceDayOfWeek: args.recurrenceDayOfWeek,
-      color: args.color,
+      recurrenceDaysOfWeek:
+        recurrenceDaysOfWeek.length > 0 ? recurrenceDaysOfWeek : undefined,
       userId,
       isArchived: false,
       visibility: args.visibility,
       teamId: args.teamId,
       assigneeUserIds: args.assigneeUserIds,
+      ...(tags.length > 0 ? { tags } : {}),
     });
   },
 });
@@ -156,16 +331,18 @@ export const update = mutation({
         v.literal("weekly"),
         v.literal("biweekly"),
         v.literal("monthly"),
-        v.literal("custom")
+        v.literal("custom"),
+        v.literal("weeklyDays")
       )
     ),
     recurrenceInterval: v.optional(v.number()),
     recurrenceUnit: recurrenceUnitValidator,
     recurrenceDayOfWeek: v.optional(v.number()),
-    color: v.optional(v.string()),
+    recurrenceDaysOfWeek: recurrenceDaysOfWeekValidator,
     visibility: v.optional(visibilityValidator),
     teamId: v.optional(v.id("teams")),
     assigneeUserIds: v.optional(v.array(v.id("users"))),
+    tags: v.optional(v.array(v.string())),
   },
   handler: async (ctx, args) => {
     const userId = await getAuthUserId(ctx);
@@ -188,7 +365,22 @@ export const update = mutation({
       finalPatch.recurrenceUnit = rest.recurrenceUnit;
     if (rest.recurrenceDayOfWeek !== undefined)
       finalPatch.recurrenceDayOfWeek = rest.recurrenceDayOfWeek;
-    if (rest.color !== undefined) finalPatch.color = rest.color;
+    if (rest.recurrenceDaysOfWeek !== undefined)
+      finalPatch.recurrenceDaysOfWeek = normalizeWeekdays(rest.recurrenceDaysOfWeek);
+    if (rest.tags !== undefined) {
+      finalPatch.tags = normalizeTags(rest.tags);
+    }
+    const nextRecurrenceType = rest.recurrenceType ?? task.recurrenceType;
+    if (nextRecurrenceType === "weeklyDays") {
+      const nextWeekdays =
+        rest.recurrenceDaysOfWeek !== undefined
+          ? normalizeWeekdays(rest.recurrenceDaysOfWeek)
+          : normalizeWeekdays(task.recurrenceDaysOfWeek);
+      if (nextWeekdays.length === 0) {
+        throw new Error("Pick at least one weekday");
+      }
+      finalPatch.recurrenceDaysOfWeek = nextWeekdays;
+    }
 
     const visOrTeamChanged =
       rest.visibility !== undefined || rest.teamId !== undefined;
@@ -277,10 +469,13 @@ function computeNextDue(
     recurrenceInterval?: number;
     recurrenceUnit?: string;
     recurrenceDayOfWeek?: number;
+    recurrenceDaysOfWeek?: number[];
   },
-  lastCompletedAt: number | null
+  lastCompletedAt: number | null,
+  /** When the task has never been completed, anchor the first due date to creation time (not "now"). */
+  taskCreationTime: number
 ): number | null {
-  const base = lastCompletedAt ?? Date.now();
+  const base = lastCompletedAt ?? taskCreationTime;
   const d = new Date(base);
 
   switch (task.recurrenceType) {
@@ -303,6 +498,19 @@ function computeNextDue(
       else if (unit === "weeks") d.setDate(d.getDate() + n * 7);
       else if (unit === "months") d.setMonth(d.getMonth() + n);
       break;
+    }
+    case "weeklyDays": {
+      const weekdays = normalizeWeekdays(task.recurrenceDaysOfWeek);
+      if (weekdays.length === 0) return null;
+      const current = d.getDay();
+      for (let i = 1; i <= 7; i++) {
+        const candidate = (current + i) % 7;
+        if (weekdays.includes(candidate)) {
+          d.setDate(d.getDate() + i);
+          return d.getTime();
+        }
+      }
+      return null;
     }
     default:
       return null;

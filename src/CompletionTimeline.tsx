@@ -16,20 +16,24 @@ type Completion = {
 export function CompletionTimeline({
   completions,
   taskId: _taskId,
+  showHeading = true,
 }: {
   completions: Completion[];
   taskId: Id<"tasks">;
+  showHeading?: boolean;
 }) {
   const deleteCompletion = useMutation(api.completions.deleteCompletion);
 
   return (
     <div>
-      <h3 className="mb-3 text-sm font-medium text-foreground">
-        History{" "}
-        {completions.length > 0 && (
-          <span className="font-normal text-muted-foreground">({completions.length})</span>
-        )}
-      </h3>
+      {showHeading && (
+        <h3 className="mb-3 text-sm font-medium text-foreground">
+          History{" "}
+          {completions.length > 0 && (
+            <span className="font-normal text-muted-foreground">({completions.length})</span>
+          )}
+        </h3>
+      )}
       {completions.length === 0 ? (
         <p className="py-4 text-center text-sm text-muted-foreground">No completions yet</p>
       ) : (

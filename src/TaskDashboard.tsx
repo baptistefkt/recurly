@@ -5,11 +5,16 @@ import { api } from "../convex/_generated/api";
 import { TaskCard } from "./TaskCard";
 import { TaskModal } from "./TaskModal";
 import { TaskDetailModal } from "./TaskDetailModal";
-import { SignOutButton } from "./SignOutButton";
 import { TeamBar } from "./TeamBar";
+import { UserMenu } from "./UserMenu";
 import { PendingInvitesBanner } from "./PendingInvitesBanner";
 import { Id } from "../convex/_generated/dataModel";
 import { DUE_GROUP_LABEL, groupTasksByDueGroup } from "./dueGroups";
+import {
+  listQueryArgs,
+  taskModalContext,
+  type TaskListFilter,
+} from "./taskListFilter";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -22,13 +27,17 @@ export function TaskDashboard() {
   const [showModal, setShowModal] = useState(false);
   const [editTaskId, setEditTaskId] = useState<Id<"tasks"> | null>(null);
   const [detailTaskId, setDetailTaskId] = useState<Id<"tasks"> | null>(null);
-  const [selectedTeamId, setSelectedTeamId] = useState<Id<"teams"> | null>(null);
-
-  const tasks = useQuery(api.tasks.list, {
-    includeArchived: tab === "archived",
-    listMode: selectedTeamId === null ? "personal" : "team",
-    teamId: selectedTeamId ?? undefined,
+  const [taskListFilter, setTaskListFilter] = useState<TaskListFilter>({
+    type: "personal",
   });
+  const [createTeamOpen, setCreateTeamOpen] = useState(false);
+  const [selectedTag, setSelectedTag] = useState<string | null>(null);
+
+  const tagLabels = useQuery(api.tasks.distinctTags, {});
+  const tasks = useQuery(
+    api.tasks.list,
+    listQueryArgs(taskListFilter, tab === "archived", selectedTag)
+  );
   const user = useQuery(api.auth.loggedInUser);
 
   const now = Date.now();
@@ -57,16 +66,60 @@ export function TaskDashboard() {
             </div>
             <span className="font-semibold text-foreground">Recurly</span>
           </div>
-          <div className="flex items-center gap-3">
-            <span className="hidden text-sm text-muted-foreground sm:block">{user?.email}</span>
-            <SignOutButton />
-          </div>
+          <UserMenu
+            user={user ?? undefined}
+            onAddTask={() => {
+              setEditTaskId(null);
+              setShowModal(true);
+            }}
+            onNewTeam={() => setCreateTeamOpen(true)}
+          />
         </div>
       </header>
 
       <div className="mx-auto flex w-full max-w-2xl flex-1 flex-col gap-4 px-4 py-6">
         <PendingInvitesBanner />
-        <TeamBar selectedTeamId={selectedTeamId} onSelectTeam={setSelectedTeamId} />
+        <TeamBar
+          filter={taskListFilter}
+          onFilterChange={(next) => {
+            setTaskListFilter(next);
+            setSelectedTag(null);
+          }}
+          createTeamOpen={createTeamOpen}
+          onCreateTeamOpenChange={setCreateTeamOpen}
+        />
+        {tagLabels !== undefined && tagLabels.length > 0 && (
+          <div className="flex flex-col gap-1.5">
+            <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+              Filter by tag
+            </p>
+            <div className="-mx-1 flex gap-1.5 overflow-x-auto pb-1">
+              <Button
+                type="button"
+                variant={selectedTag === null ? "default" : "outline"}
+                size="sm"
+                className="h-7 shrink-0 rounded-full px-3 text-xs"
+                onClick={() => setSelectedTag(null)}
+              >
+                All
+              </Button>
+              {tagLabels.map((label) => (
+                <Button
+                  key={label}
+                  type="button"
+                  variant={selectedTag === label ? "default" : "outline"}
+                  size="sm"
+                  className="h-7 shrink-0 rounded-full px-3 text-xs font-normal"
+                  onClick={() =>
+                    setSelectedTag((prev) => (prev === label ? null : label))
+                  }
+                >
+                  {label}
+                </Button>
+              ))}
+            </div>
+          </div>
+        )}
         <div className="grid grid-cols-3 gap-3">
           <StatCard
             label="Total Tasks"
@@ -151,8 +204,7 @@ export function TaskDashboard() {
             setShowModal(false);
             setEditTaskId(null);
           }}
-          listMode={selectedTeamId === null ? "personal" : "team"}
-          activeTeamId={selectedTeamId}
+          {...taskModalContext(taskListFilter)}
         />
       )}
       {detailTaskId && (

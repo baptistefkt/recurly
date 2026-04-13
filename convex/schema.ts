@@ -48,16 +48,20 @@ const applicationTables = {
       v.literal("weekly"),
       v.literal("biweekly"),
       v.literal("monthly"),
-      v.literal("custom")
+      v.literal("custom"),
+      v.literal("weeklyDays")
     ),
     recurrenceInterval: v.optional(v.number()),
     recurrenceUnit: v.optional(v.union(v.literal("days"), v.literal("weeks"), v.literal("months"))),
     recurrenceDayOfWeek: v.optional(v.number()),
+    recurrenceDaysOfWeek: v.optional(v.array(v.number())),
     isArchived: v.optional(v.boolean()),
+    // Legacy field kept for backward compatibility with existing rows.
     color: v.optional(v.string()),
     visibility: v.optional(taskVisibility),
     teamId: v.optional(v.id("teams")),
     assigneeUserIds: v.optional(v.array(v.id("users"))),
+    tags: v.optional(v.array(v.string())),
   })
     .index("by_user", ["userId"])
     .index("by_user_and_archived", ["userId", "isArchived"])
@@ -86,6 +90,10 @@ export default defineSchema({
     phoneVerificationTime: v.optional(v.number()),
     isAnonymous: v.optional(v.boolean()),
     lastSelectedTeamId: v.optional(v.id("teams")),
+    /** Which task list is shown: personal-only, merged personal + all teams, or one team. */
+    taskListScope: v.optional(
+      v.union(v.literal("personal"), v.literal("all"), v.literal("team"))
+    ),
   })
     .index("email", ["email"])
     .index("phone", ["phone"]),

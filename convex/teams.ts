@@ -26,7 +26,10 @@ export const create = mutation({
       role: "admin",
       joinedAt: now,
     });
-    await ctx.db.patch(userId, { lastSelectedTeamId: teamId });
+    await ctx.db.patch(userId, {
+      lastSelectedTeamId: teamId,
+      taskListScope: "team",
+    });
     return teamId;
   },
 });
@@ -85,11 +88,47 @@ export const setLastSelectedTeam = mutation({
   handler: async (ctx, args) => {
     const userId = await requireAuthUserId(ctx);
     if (args.teamId === null) {
-      await ctx.db.patch(userId, { lastSelectedTeamId: undefined });
+      await ctx.db.patch(userId, {
+        lastSelectedTeamId: undefined,
+        taskListScope: "personal",
+      });
       return;
     }
     await assertTeamMember(ctx, args.teamId, userId);
-    await ctx.db.patch(userId, { lastSelectedTeamId: args.teamId });
+    await ctx.db.patch(userId, {
+      lastSelectedTeamId: args.teamId,
+      taskListScope: "team",
+    });
+  },
+});
+
+/** Persists which task list to show: personal, merged (all), or a single team. */
+export const setTaskListView = mutation({
+  args: {
+    view: v.union(
+      v.literal("personal"),
+      v.literal("all"),
+      v.object({ teamId: v.id("teams") })
+    ),
+  },
+  handler: async (ctx, args) => {
+    const userId = await requireAuthUserId(ctx);
+    if (args.view === "personal") {
+      await ctx.db.patch(userId, {
+        taskListScope: "personal",
+        lastSelectedTeamId: undefined,
+      });
+      return;
+    }
+    if (args.view === "all") {
+      await ctx.db.patch(userId, { taskListScope: "all" });
+      return;
+    }
+    await assertTeamMember(ctx, args.view.teamId, userId);
+    await ctx.db.patch(userId, {
+      taskListScope: "team",
+      lastSelectedTeamId: args.view.teamId,
+    });
   },
 });
 

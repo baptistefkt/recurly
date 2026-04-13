@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useMutation, useQuery } from "convex/react";
 import { api } from "../convex/_generated/api";
 import { Id } from "../convex/_generated/dataModel";
@@ -23,24 +23,40 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { cn } from "@/lib/utils";
+import { Badge } from "@/components/ui/badge";
+import { X } from "lucide-react";
 
-const COLORS = [
-  { name: "gray", label: "Gray", cls: "bg-gray-400" },
-  { name: "red", label: "Red", cls: "bg-red-400" },
-  { name: "orange", label: "Orange", cls: "bg-orange-400" },
-  { name: "yellow", label: "Yellow", cls: "bg-yellow-400" },
-  { name: "green", label: "Green", cls: "bg-green-400" },
-  { name: "blue", label: "Blue", cls: "bg-blue-400" },
-  { name: "purple", label: "Purple", cls: "bg-purple-400" },
-  { name: "pink", label: "Pink", cls: "bg-pink-400" },
-];
+const MAX_TAG_LEN = 40;
+const MAX_TAG_COUNT = 20;
 
-type RecurrenceType = "daily" | "weekly" | "biweekly" | "monthly" | "custom";
+type RecurrenceType =
+  | "daily"
+  | "weekly"
+  | "biweekly"
+  | "monthly"
+  | "custom"
+  | "weeklyDays";
 type RecurrenceUnit = "days" | "weeks" | "months";
+const WEEKDAY_OPTIONS = [
+  { label: "Mon", value: 1 },
+  { label: "Tue", value: 2 },
+  { label: "Wed", value: 3 },
+  { label: "Thu", value: 4 },
+  { label: "Fri", value: 5 },
+  { label: "Sat", value: 6 },
+  { label: "Sun", value: 0 },
+] as const;
 
 function effectiveVis(t: { visibility?: "personal" | "team" } | null | undefined) {
   return t?.visibility ?? "personal";
+}
+
+function mergeTagIntoList(list: string[], raw: string): string[] {
+  const t = raw.trim().slice(0, MAX_TAG_LEN);
+  if (!t) return list;
+  if (list.some((x) => x.toLowerCase() === t.toLowerCase())) return list;
+  if (list.length >= MAX_TAG_COUNT) return list;
+  return [...list, t];
 }
 
 export function TaskModal({
@@ -55,6 +71,7 @@ export function TaskModal({
   activeTeamId: Id<"teams"> | null;
 }) {
   const existingTask = useQuery(api.tasks.get, taskId ? { taskId } : "skip");
+  const distinctTagLabels = useQuery(api.tasks.distinctTags, {});
   const createTask = useMutation(api.tasks.create);
   const updateTask = useMutation(api.tasks.update);
   const removeTask = useMutation(api.tasks.remove);
@@ -64,11 +81,20 @@ export function TaskModal({
   const [recurrenceType, setRecurrenceType] = useState<RecurrenceType>("weekly");
   const [recurrenceInterval, setRecurrenceInterval] = useState(1);
   const [recurrenceUnit, setRecurrenceUnit] = useState<RecurrenceUnit>("weeks");
-  const [color, setColor] = useState("gray");
+  const [recurrenceDaysOfWeek, setRecurrenceDaysOfWeek] = useState<number[]>([1]);
   const [saving, setSaving] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [shareWithTeam, setShareWithTeam] = useState(false);
   const [assigneeUserIds, setAssigneeUserIds] = useState<Id<"users">[]>([]);
+  const [tags, setTags] = useState<string[]>([]);
+  const [tagDraft, setTagDraft] = useState("");
+
+  const tagSuggestions = useMemo(() => {
+    if (!distinctTagLabels?.length) return [];
+    return distinctTagLabels.filter(
+      (t) => !tags.some((x) => x.toLowerCase() === t.toLowerCase())
+    );
+  }, [distinctTagLabels, tags]);
 
   const teamIdForMembers =
     existingTask && effectiveVis(existingTask) === "team" && existingTask.teamId
@@ -96,12 +122,21 @@ export function TaskModal({
       setRecurrenceType(existingTask.recurrenceType as RecurrenceType);
       setRecurrenceInterval(existingTask.recurrenceInterval ?? 1);
       setRecurrenceUnit((existingTask.recurrenceUnit as RecurrenceUnit) ?? "weeks");
-      setColor(existingTask.color ?? "gray");
+      const weekdays = existingTask.recurrenceDaysOfWeek ?? [];
+      if (weekdays.length > 0) {
+        setRecurrenceDaysOfWeek(weekdays);
+      } else if (existingTask.recurrenceDayOfWeek !== undefined) {
+        setRecurrenceDaysOfWeek([existingTask.recurrenceDayOfWeek]);
+      } else {
+        setRecurrenceDaysOfWeek([1]);
+      }
       setShareWithTeam(effectiveVis(existingTask) === "team");
       setAssigneeUserIds(existingTask.assigneeUserIds ?? []);
+      setTags(existingTask.tags ?? []);
     } else {
       setShareWithTeam(listMode === "team" && !!activeTeamId);
       setAssigneeUserIds([]);
+      setRecurrenceDaysOfWeek([1]);
     }
   }, [existingTask, listMode, activeTeamId]);
 
@@ -116,15 +151,44 @@ export function TaskModal({
     );
   }
 
+  function toggleWeekday(day: number) {
+    setRecurrenceDaysOfWeek((prev) => {
+      if (prev.includes(day)) {
+        if (prev.length === 1) return prev;
+        return prev.filter((d) => d !== day);
+      }
+      return [...prev, day].sort((a, b) => a - b);
+    });
+  }
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!title.trim()) return;
     setSaving(true);
     try {
-      const customFields =
+      const recurrenceFields =
         recurrenceType === "custom"
-          ? { recurrenceInterval, recurrenceUnit }
-          : { recurrenceInterval: undefined, recurrenceUnit: undefined };
+          ? {
+              recurrenceInterval,
+              recurrenceUnit,
+              recurrenceDaysOfWeek: undefined,
+            }
+          : recurrenceType === "weeklyDays"
+            ? {
+                recurrenceInterval: undefined,
+                recurrenceUnit: undefined,
+                recurrenceDaysOfWeek,
+              }
+            : {
+                recurrenceInterval: undefined,
+                recurrenceUnit: undefined,
+                recurrenceDaysOfWeek: undefined,
+              };
+      if (recurrenceType === "weeklyDays" && recurrenceDaysOfWeek.length === 0) {
+        toast.error("Pick at least one weekday");
+        setSaving(false);
+        return;
+      }
 
       const teamIdForTask =
         shareWithTeam && (activeTeamId ?? existingTask?.teamId)
@@ -143,12 +207,12 @@ export function TaskModal({
           title: title.trim(),
           description: description.trim() || undefined,
           recurrenceType,
-          color,
-          ...customFields,
+          ...recurrenceFields,
           visibility,
           teamId: visibility === "team" ? teamIdForTask : undefined,
           assigneeUserIds:
             visibility === "team" ? assigneeUserIds : undefined,
+          tags,
         });
         toast.success("Task updated");
       } else {
@@ -161,11 +225,11 @@ export function TaskModal({
           title: title.trim(),
           description: description.trim() || undefined,
           recurrenceType,
-          color,
-          ...customFields,
+          ...recurrenceFields,
           visibility,
           teamId: visibility === "team" ? activeTeamId! : undefined,
           assigneeUserIds: assignees,
+          tags,
         });
         toast.success("Task created");
       }
@@ -226,6 +290,77 @@ export function TaskModal({
               />
             </div>
 
+            <div className="space-y-2">
+              <Label htmlFor="task-tags">
+                Tags <span className="text-muted-foreground font-normal">(optional)</span>
+              </Label>
+              {tags.length > 0 && (
+                <div className="flex flex-wrap gap-1.5">
+                  {tags.map((tag) => (
+                    <Badge
+                      key={tag}
+                      variant="secondary"
+                      className="gap-1 pr-1 font-normal"
+                    >
+                      {tag}
+                      <button
+                        type="button"
+                        className="rounded-sm p-0.5 hover:bg-muted-foreground/20"
+                        onClick={() =>
+                          setTags((prev) =>
+                            prev.filter(
+                              (x) => x.toLowerCase() !== tag.toLowerCase()
+                            )
+                          )
+                        }
+                        aria-label={`Remove ${tag}`}
+                      >
+                        <X className="h-3 w-3" />
+                      </button>
+                    </Badge>
+                  ))}
+                </div>
+              )}
+              <Input
+                id="task-tags"
+                value={tagDraft}
+                onChange={(e) => setTagDraft(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    e.preventDefault();
+                    setTags((prev) => {
+                      const next = mergeTagIntoList(prev, tagDraft);
+                      return next;
+                    });
+                    setTagDraft("");
+                  }
+                }}
+                placeholder="Type a tag and press Enter"
+                disabled={tags.length >= MAX_TAG_COUNT}
+              />
+              {tagSuggestions.length > 0 && (
+                <div className="flex flex-wrap gap-1.5 pt-0.5">
+                  <span className="w-full text-[11px] text-muted-foreground">
+                    Suggestions
+                  </span>
+                  {tagSuggestions.map((t) => (
+                    <Button
+                      key={t}
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className="h-7 rounded-full px-2.5 text-xs font-normal"
+                      onClick={() => {
+                        setTags((prev) => mergeTagIntoList(prev, t));
+                      }}
+                    >
+                      {t}
+                    </Button>
+                  ))}
+                </div>
+              )}
+            </div>
+
             {showSharing && (
               <div className="space-y-3">
                 <Label>Visibility</Label>
@@ -272,7 +407,9 @@ export function TaskModal({
             <div className="space-y-2">
               <Label>Repeats</Label>
               <div className="grid grid-cols-3 gap-2">
-                {(["daily", "weekly", "biweekly", "monthly", "custom"] as RecurrenceType[]).map((r) => (
+                {(
+                  ["daily", "weekly", "biweekly", "monthly", "custom", "weeklyDays"] as RecurrenceType[]
+                ).map((r) => (
                   <Button
                     key={r}
                     type="button"
@@ -281,10 +418,38 @@ export function TaskModal({
                     className="capitalize"
                     onClick={() => setRecurrenceType(r)}
                   >
-                    {r === "biweekly" ? "2 wk" : r === "custom" ? "Custom" : r}
+                    {r === "biweekly"
+                      ? "2 wk"
+                      : r === "custom"
+                        ? "Custom"
+                        : r === "weeklyDays"
+                          ? "Days"
+                          : r}
                   </Button>
                 ))}
               </div>
+              {recurrenceType === "weeklyDays" && (
+                <div className="mt-2 space-y-2">
+                  <span className="text-sm text-muted-foreground">On these days</span>
+                  <div className="flex flex-wrap gap-1.5">
+                    {WEEKDAY_OPTIONS.map((day) => {
+                      const active = recurrenceDaysOfWeek.includes(day.value);
+                      return (
+                        <Button
+                          key={day.value}
+                          type="button"
+                          variant={active ? "default" : "outline"}
+                          size="sm"
+                          className="h-8 min-w-11 rounded-full px-3"
+                          onClick={() => toggleWeekday(day.value)}
+                        >
+                          {day.label}
+                        </Button>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
               {recurrenceType === "custom" && (
                 <div className="mt-2 flex flex-wrap items-center gap-2">
                   <span className="text-sm text-muted-foreground">Every</span>
@@ -312,25 +477,6 @@ export function TaskModal({
                   </div>
                 </div>
               )}
-            </div>
-
-            <div className="space-y-2">
-              <Label>Color</Label>
-              <div className="flex flex-wrap gap-2">
-                {COLORS.map((c) => (
-                  <button
-                    key={c.name}
-                    type="button"
-                    onClick={() => setColor(c.name)}
-                    className={cn(
-                      "h-7 w-7 rounded-full transition-transform",
-                      c.cls,
-                      color === c.name ? "ring-2 ring-offset-2 ring-ring scale-110" : "hover:scale-105"
-                    )}
-                    title={c.label}
-                  />
-                ))}
-              </div>
             </div>
 
             <div className="flex gap-2 pt-1">

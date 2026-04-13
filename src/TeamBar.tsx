@@ -5,6 +5,12 @@ import { api } from "../convex/_generated/api";
 import { Id } from "../convex/_generated/dataModel";
 import { toast } from "sonner";
 import { TeamSettingsModal } from "./TeamSettingsModal";
+import {
+  filterToViewTabValue,
+  taskListFilterToMutationView,
+  viewTabValueToFilter,
+  type TaskListFilter,
+} from "./taskListFilter";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -15,20 +21,25 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+
 export function TeamBar({
-  selectedTeamId,
-  onSelectTeam,
+  filter,
+  onFilterChange,
+  createTeamOpen,
+  onCreateTeamOpenChange,
 }: {
-  selectedTeamId: Id<"teams"> | null;
-  onSelectTeam: (teamId: Id<"teams"> | null) => void;
+  filter: TaskListFilter;
+  onFilterChange: (f: TaskListFilter) => void;
+  createTeamOpen: boolean;
+  onCreateTeamOpenChange: (open: boolean) => void;
 }) {
   const user = useQuery(api.auth.loggedInUser);
   const memberships = useQuery(api.teams.myMemberships);
-  const setLastTeam = useMutation(api.teams.setLastSelectedTeam);
+  const setTaskListView = useMutation(api.teams.setTaskListView);
   const createTeam = useMutation(api.teams.create);
 
   const [settingsTeamId, setSettingsTeamId] = useState<Id<"teams"> | null>(null);
-  const [createOpen, setCreateOpen] = useState(false);
   const [newTeamName, setNewTeamName] = useState("");
   const [creating, setCreating] = useState(false);
   const initRef = useRef(false);
@@ -36,19 +47,28 @@ export function TeamBar({
   useEffect(() => {
     if (initRef.current || memberships === undefined || user === undefined) return;
     initRef.current = true;
-    const saved = user?.lastSelectedTeamId;
-    if (
-      saved &&
-      memberships.some((m: { teamId: Id<"teams"> }) => m.teamId === saved)
-    ) {
-      onSelectTeam(saved);
-    }
-  }, [memberships, user, onSelectTeam]);
+    const scope = user.taskListScope;
+    const savedTeam = user.lastSelectedTeamId;
+    const hasTeam =
+      !!savedTeam && memberships.some((m: { teamId: Id<"teams"> }) => m.teamId === savedTeam);
 
-  async function handleSelect(teamId: Id<"teams"> | null) {
-    onSelectTeam(teamId);
+    if (scope === "all") {
+      onFilterChange({ type: "all" });
+    } else if (scope === "team" && hasTeam) {
+      onFilterChange({ type: "team", teamId: savedTeam });
+    } else if (scope === "personal") {
+      onFilterChange({ type: "personal" });
+    } else if (scope === undefined && hasTeam) {
+      onFilterChange({ type: "team", teamId: savedTeam });
+    } else {
+      onFilterChange({ type: "personal" });
+    }
+  }, [memberships, user, onFilterChange]);
+
+  async function persistView(next: TaskListFilter) {
+    onFilterChange(next);
     try {
-      await setLastTeam({ teamId });
+      await setTaskListView({ view: taskListFilterToMutationView(next) });
     } catch {
       /* ignore */
     }
@@ -61,9 +81,9 @@ export function TeamBar({
     try {
       const teamId = await createTeam({ name: newTeamName.trim() });
       toast.success("Team created");
-      setCreateOpen(false);
+      onCreateTeamOpenChange(false);
       setNewTeamName("");
-      await handleSelect(teamId);
+      onFilterChange({ type: "team", teamId });
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Could not create team");
     } finally {
@@ -72,66 +92,59 @@ export function TeamBar({
   }
 
   const settingsMembership = memberships?.find((m) => m.teamId === settingsTeamId);
+  const selectedTeamId = filter.type === "team" ? filter.teamId : null;
+
+  const tabValue = filterToViewTabValue(filter);
+  const membershipIds = new Set((memberships ?? []).map((m) => m.teamId));
+  const tabValueValid =
+    tabValue === "all" ||
+    tabValue === "personal" ||
+    (tabValue.startsWith("team:") &&
+      membershipIds.has(tabValue.slice("team:".length) as Id<'teams'>));
+  const safeTabValue = tabValueValid ? tabValue : "personal";
 
   return (
     <>
       <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-        <div className="flex flex-wrap items-center gap-2">
-          <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-            View
-          </span>
-          <div className="flex flex-wrap gap-1">
-            <Button
-              type="button"
-              variant={selectedTeamId === null ? "default" : "outline"}
-              size="sm"
-              className="rounded-lg"
-              onClick={() => void handleSelect(null)}
-            >
+        <Tabs
+          value={safeTabValue}
+          onValueChange={(v) => void persistView(viewTabValueToFilter(v))}
+          className="w-full sm:w-auto"
+        >
+          <TabsList className="h-auto w-full flex-wrap justify-start gap-1 bg-muted/80 p-1 sm:inline-flex sm:w-auto">
+            <TabsTrigger value="all" className="shrink-0">
+              All
+            </TabsTrigger>
+            <TabsTrigger value="personal" className="shrink-0">
               Personal
-            </Button>
+            </TabsTrigger>
             {(memberships ?? []).map((m) => (
-              <Button
+              <TabsTrigger
                 key={m.teamId}
-                type="button"
-                variant={selectedTeamId === m.teamId ? "default" : "outline"}
-                size="sm"
-                className="max-w-[140px] truncate rounded-lg"
+                value={`team:${m.teamId}`}
+                className="max-w-[min(140px,100%)] shrink truncate"
                 title={m.teamName}
-                onClick={() => void handleSelect(m.teamId)}
               >
                 {m.teamName}
-              </Button>
+              </TabsTrigger>
             ))}
-          </div>
-        </div>
-        <div className="flex items-center gap-2">
+          </TabsList>
+        </Tabs>
+        {selectedTeamId !== null && (
           <Button
             type="button"
-            variant="link"
-            size="sm"
-            className="h-auto p-0 text-primary"
-            disabled={creating}
-            onClick={() => setCreateOpen(true)}
+            variant="outline"
+            size="icon"
+            className="h-8 w-8 shrink-0 self-start sm:self-center"
+            title="Team settings"
+            onClick={() => setSettingsTeamId(selectedTeamId)}
           >
-            + New team
+            <Settings className="h-4 w-4" />
           </Button>
-          {selectedTeamId !== null && (
-            <Button
-              type="button"
-              variant="outline"
-              size="icon"
-              className="h-8 w-8 shrink-0"
-              title="Team settings"
-              onClick={() => setSettingsTeamId(selectedTeamId)}
-            >
-              <Settings className="h-4 w-4" />
-            </Button>
-          )}
-        </div>
+        )}
       </div>
 
-      <Dialog open={createOpen} onOpenChange={setCreateOpen}>
+      <Dialog open={createTeamOpen} onOpenChange={onCreateTeamOpenChange}>
         <DialogContent className="sm:max-w-sm">
           <form onSubmit={handleCreateTeamSubmit}>
             <DialogHeader>
@@ -148,7 +161,7 @@ export function TeamBar({
               />
             </div>
             <DialogFooter>
-              <Button type="button" variant="outline" onClick={() => setCreateOpen(false)}>
+              <Button type="button" variant="outline" onClick={() => onCreateTeamOpenChange(false)}>
                 Cancel
               </Button>
               <Button type="submit" disabled={creating || !newTeamName.trim()}>
