@@ -84,8 +84,8 @@ npx convex env set FIREBASE_PRIVATE_KEY "-----BEGIN PRIVATE KEY-----\n...\n-----
 
 ### 3) Service worker
 
-`public/firebase-messaging-sw.js` handles background notifications.  
-It is registered by the app and initialized with your Firebase config.
+`src/sw.ts` handles both PWA caching/offline shell and Firebase background notifications.  
+It is built to `/sw.js` and registered by the app.
 
 ### 4) Convex API added
 

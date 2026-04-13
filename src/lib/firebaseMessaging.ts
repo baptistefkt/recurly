@@ -54,9 +54,8 @@ export async function initializeFirebaseMessaging(
   return getMessaging(getFirebaseApp(config));
 }
 
-export function buildServiceWorkerUrl(config: FirebaseMessagingConfig): string {
-  const params = new URLSearchParams(config);
-  return `/firebase-messaging-sw.js?${params.toString()}`;
+export function getPushServiceWorkerUrl(): string {
+  return "/sw.js";
 }
 
 export async function getBrowserPushToken(

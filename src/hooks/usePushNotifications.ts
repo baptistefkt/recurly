@@ -3,10 +3,10 @@ import { useMutation } from "convex/react";
 import { toast } from "sonner";
 import { api } from "../../convex/_generated/api";
 import {
-  buildServiceWorkerUrl,
   getBrowserPushToken,
   getFirebaseMessagingConfig,
   getFirebaseVapidKey,
+  getPushServiceWorkerUrl,
   initializeFirebaseMessaging,
   subscribeToForegroundMessages,
 } from "@/lib/firebaseMessaging";
@@ -137,10 +137,12 @@ export function usePushNotifications(): UsePushNotificationsResult {
           return;
         }
 
-        const swUrl = buildServiceWorkerUrl(firebaseConfig);
-        const serviceWorkerRegistration = await navigator.serviceWorker.register(
-          swUrl
-        );
+        const existingRegistration = await navigator.serviceWorker.getRegistration();
+        const activeScriptUrl = existingRegistration?.active?.scriptURL ?? "";
+        const serviceWorkerRegistration =
+          activeScriptUrl.includes(getPushServiceWorkerUrl()) && existingRegistration
+            ? existingRegistration
+            : await navigator.serviceWorker.register(getPushServiceWorkerUrl());
         await waitForActiveServiceWorker(serviceWorkerRegistration);
 
         const nextToken = await getBrowserPushToken(
