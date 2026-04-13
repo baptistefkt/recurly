@@ -32,16 +32,16 @@ function LandingPage() {
   return (
     <div className="min-h-screen flex flex-col items-center justify-center p-6 bg-background">
       <Card className="w-full max-w-sm border shadow-md">
-        <CardHeader className="text-center space-y-3">
-          <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-primary text-primary-foreground">
-            <svg className="h-7 w-7" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
-              />
-            </svg>
+        <CardHeader className="space-y-3 text-center">
+          <div className="mx-auto flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-2xl bg-black ring-1 ring-border/40">
+            <img
+              src="/icon-192.png"
+              alt=""
+              width={56}
+              height={56}
+              className="h-full w-full object-cover"
+              decoding="async"
+            />
           </div>
           <CardTitle className="text-2xl font-bold tracking-tight">Recurly</CardTitle>
           <CardDescription>Track your recurring tasks with ease</CardDescription>
