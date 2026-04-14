@@ -1,9 +1,27 @@
+@import "tailwindcss";
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
 @import "@fontsource-variable/inter";
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+
+@config '../tailwind.config.js';
+
+/*
+  The default border color has changed to `currentcolor` in Tailwind CSS v4,
+  so we've added these compatibility styles to make sure everything still
+  looks the same as it did with Tailwind CSS v3.
+
+  If we ever want to remove these styles, we need to add an explicit border
+  color utility to any element that depends on these defaults.
+*/
+@layer base {
+  *,
+  ::after,
+  ::before,
+  ::backdrop,
+  ::file-selector-button {
+    border-color: var(--color-gray-200, currentcolor);
+  }
+}
 
 @layer base {
   :root {
@@ -22,7 +40,7 @@
     --accent: oklch(0.966 0.005 106.5);
     --accent-foreground: oklch(0.228 0.013 107.4);
     --destructive: oklch(0.577 0.245 27.325);
-    --destructive-foreground: 210 40% 98%;
+    --destructive-foreground: oklch(0.985 0.002 106.5);
     --border: oklch(0.93 0.007 106.5);
     --input: oklch(0.93 0.007 106.5);
     --ring: oklch(0.737 0.021 106.9);
@@ -58,7 +76,7 @@
     --accent: oklch(0.286 0.016 107.4);
     --accent-foreground: oklch(0.988 0.003 106.5);
     --destructive: oklch(0.704 0.191 22.216);
-    --destructive-foreground: 210 40% 98%;
+    --destructive-foreground: oklch(0.985 0.002 106.5);
     --border: oklch(1 0 0 / 10%);
     --input: oklch(1 0 0 / 15%);
     --ring: oklch(0.58 0.031 107.3);
@@ -81,7 +99,8 @@
     --font-sans: 'Inter Variable', sans-serif;
   }
   * {
-    @apply border-border outline-ring/50;
+    @apply border-border;
+    outline-color: color-mix(in oklch, var(--ring) 50%, transparent);
   }
   body {
     @apply bg-background text-foreground;
