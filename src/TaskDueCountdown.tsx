@@ -111,7 +111,7 @@ export function TaskDueCountdown({
       <Button
         type="button"
         disabled={busy}
-        className="h-auto w-full max-w-sm rounded-lg bg-foreground px-6 py-3 text-sm font-semibold text-background shadow-none hover:bg-foreground/90"
+        className="h-auto w-full max-w-sm px-6 py-3 text-sm font-semibold"
         onClick={() => void onMarkComplete()}
       >
         Mark complete
