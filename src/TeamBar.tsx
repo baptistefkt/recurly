@@ -109,22 +109,12 @@ export function TeamBar({
         <Tabs
           value={safeTabValue}
           onValueChange={(v) => void persistView(viewTabValueToFilter(v))}
-          className="w-full sm:w-auto"
         >
-          <TabsList className="h-auto w-full flex-wrap justify-start gap-1 bg-muted/80 p-1 sm:inline-flex sm:w-auto">
-            <TabsTrigger value="all" className="shrink-0">
-              All
-            </TabsTrigger>
-            <TabsTrigger value="personal" className="shrink-0">
-              Personal
-            </TabsTrigger>
+          <TabsList>
+            <TabsTrigger value="all">All</TabsTrigger>
+            <TabsTrigger value="personal">Personal</TabsTrigger>
             {(memberships ?? []).map((m) => (
-              <TabsTrigger
-                key={m.teamId}
-                value={`team:${m.teamId}`}
-                className="max-w-[min(140px,100%)] shrink truncate"
-                title={m.teamName}
-              >
+              <TabsTrigger key={m.teamId} value={`team:${m.teamId}`} title={m.teamName}>
                 {m.teamName}
               </TabsTrigger>
             ))}
@@ -135,7 +125,6 @@ export function TeamBar({
             type="button"
             variant="outline"
             size="icon"
-            className="h-8 w-8 shrink-0 self-start sm:self-center"
             title="Team settings"
             onClick={() => setSettingsTeamId(selectedTeamId)}
           >
@@ -145,7 +134,7 @@ export function TeamBar({
       </div>
 
       <Dialog open={createTeamOpen} onOpenChange={onCreateTeamOpenChange}>
-        <DialogContent className="sm:max-w-sm">
+        <DialogContent>
           <form onSubmit={handleCreateTeamSubmit}>
             <DialogHeader>
               <DialogTitle>New team</DialogTitle>

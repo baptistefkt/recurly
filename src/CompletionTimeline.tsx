@@ -71,7 +71,6 @@ export function CompletionTimeline({
                       type="button"
                       variant="ghost"
                       size="icon"
-                      className="h-7 w-7 shrink-0 text-muted-foreground hover:text-destructive"
                       title="Remove completion"
                       onClick={async () => {
                         try {
@@ -82,7 +81,7 @@ export function CompletionTimeline({
                         }
                       }}
                     >
-                      <X className="h-3.5 w-3.5" />
+                      <X className="h-4 w-4" />
                     </Button>
                   </div>
                   {c.note && <p className="mt-0.5 text-xs text-muted-foreground">{c.note}</p>}

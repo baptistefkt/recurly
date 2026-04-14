@@ -108,14 +108,15 @@ export function TaskDueCountdown({
         </p>
       )}
 
-      <Button
-        type="button"
-        disabled={busy}
-        className="h-auto w-full max-w-sm px-6 py-3 text-sm font-semibold"
-        onClick={() => void onMarkComplete()}
-      >
-        Mark complete
-      </Button>
+      <div className="w-full max-w-sm [&>button]:w-full">
+        <Button
+          type="button"
+          disabled={busy}
+          onClick={() => void onMarkComplete()}
+        >
+          Mark complete
+        </Button>
+      </div>
     </div>
   );
 }

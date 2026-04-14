@@ -5,6 +5,7 @@ import {
   Archive,
   CalendarClock,
   Clock,
+  FileText,
   History,
   Pencil,
   Repeat,
@@ -28,6 +29,7 @@ import { Button } from "@/components/ui/button";
 import {
   Dialog,
   DialogContent,
+  DialogFooter,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
@@ -83,19 +85,6 @@ function PropertyRow({
   );
 }
 
-function TagPill({ children, className }: { children: React.ReactNode; className?: string }) {
-  return (
-    <span
-      className={cn(
-        "inline-flex items-center rounded-md border border-border/80 bg-muted/60 px-2 py-0.5 text-xs font-medium text-foreground",
-        className
-      )}
-    >
-      {children}
-    </span>
-  );
-}
-
 export function TaskDetailModal({
   taskId,
   onClose,
@@ -142,60 +131,60 @@ export function TaskDetailModal({
   return (
     <>
       <Dialog open onOpenChange={(open) => { if (!open) onClose(); }}>
-        <DialogContent
-          className={cn(
-            "flex max-h-[92vh] w-[calc(100vw-1rem)] max-w-3xl flex-col gap-0 overflow-hidden p-0 sm:w-full",
-            task === undefined && "min-h-[200px]"
-          )}
-        >
+        <DialogContent className="sm:max-w-3xl">
           {task === undefined ? (
-            <div className="flex flex-1 flex-col items-center justify-center gap-3 px-8 py-16">
+            <div className="flex min-h-[200px] flex-col items-center justify-center gap-3 py-8">
               <div className="h-8 w-8 animate-spin rounded-full border-2 border-primary border-t-transparent" />
               <p className="text-sm text-muted-foreground">Loading task…</p>
             </div>
           ) : task === null ? (
-            <div className="px-8 py-12 text-center text-sm text-muted-foreground">Task not found.</div>
+            <div className="py-12 text-center text-sm text-muted-foreground">Task not found.</div>
           ) : (
             <>
-              <DialogHeader
-                className={cn(
-                  "space-y-0 border-b border-l-4 px-6 pb-5 pt-6 text-left sm:pl-6",
-                  "border-l-primary/30"
-                )}
-              >
-                <DialogTitle className="pr-8 text-2xl font-semibold leading-tight tracking-tight sm:text-[1.65rem]">
-                  {task.title}
-                </DialogTitle>
+              <DialogHeader>
+                <DialogTitle>{task.title}</DialogTitle>
               </DialogHeader>
 
-              <div className="min-h-0 flex-1 overflow-y-auto">
-                
-                <div className="px-6 py-2 pb-6">
+              <div className="max-h-[min(70vh,32rem)] min-w-0 overflow-y-auto overflow-x-hidden">
+                <div className="space-y-4 pb-2">
+                  <div className="my-4">
+                    <div className="rounded-3xl bg-muted/50 px-4 py-3.5 dark:bg-muted/35">
+                      <div className="flex gap-3">
+                        <FileText
+                          className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground opacity-80"
+                          aria-hidden
+                        />
+                        <div className="min-w-0 flex-1 space-y-1.5">
+                          <p className="font-heading text-sm font-medium text-foreground">
+                            Description
+                          </p>
+                          {task.description?.trim() ? (
+                            <p className="whitespace-pre-wrap text-sm leading-relaxed text-muted-foreground">
+                              {task.description.trim()}
+                            </p>
+                          ) : (
+                            <p className="text-sm italic text-muted-foreground">
+                              No description
+                            </p>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
 
-                <div className="my-4 rounded-xl bg-slate-50 px-6 py-4 dark:bg-muted/40">
-                  <h3 className="font-medium text-foreground">Description</h3>
-                  {task.description?.trim() ? (
-                    <p className="whitespace-pre-wrap text-sm text-muted-foreground">
-                      {task.description.trim()}
-                    </p>
-                  ) : (
-                    <span className="italic text-muted-foreground">No description</span>
-                  )}
-                </div>
-
-                <TaskDueCountdown
-                  nextDueAt={task.nextDueAt}
-                  isArchived={!!task.isArchived}
-                  busy={completing}
-                  onMarkComplete={async () => {
-                    setCompleting(true);
-                    try {
-                      await markComplete({ taskId });
-                    } finally {
-                      setCompleting(false);
-                    }
-                  }}
-                />
+                  <TaskDueCountdown
+                    nextDueAt={task.nextDueAt}
+                    isArchived={!!task.isArchived}
+                    busy={completing}
+                    onMarkComplete={async () => {
+                      setCompleting(true);
+                      try {
+                        await markComplete({ taskId });
+                      } finally {
+                        setCompleting(false);
+                      }
+                    }}
+                  />
 
                   <div className="divide-y divide-border/50">
                     <PropertyRow icon={Clock} label="Created">
@@ -205,11 +194,11 @@ export function TaskDetailModal({
                         </time>
                         <span className="text-muted-foreground">,&nbsp;</span>
                         <div className="flex items-center gap-2">
-                          <Avatar className="h-7 w-7 border border-border/60 text-[10px]">
+                          <Avatar size="sm">
                             {task.createdBy.image ? (
                               <AvatarImage src={task.createdBy.image} alt="" />
                             ) : null}
-                            <AvatarFallback className="bg-muted text-[10px] font-medium">
+                            <AvatarFallback>
                               {getUserInitials(task.createdBy.name, task.createdBy.email)}
                             </AvatarFallback>
                           </Avatar>
@@ -225,34 +214,16 @@ export function TaskDetailModal({
                     <PropertyRow icon={Sparkles} label="Status">
                       <div className="flex flex-wrap items-center gap-2">
                         {visibility === "team" ? (
-                          <Badge
-                            variant="secondary"
-                            className="rounded-md border-amber-200/80 bg-amber-50 font-medium text-amber-950"
-                          >
-                            <span className="mr-1.5 inline-block h-1.5 w-1.5 rounded-full bg-amber-500" />
-                            Team
-                            {task.teamName ? ` · ${task.teamName}` : ""}
+                          <Badge variant="secondary">
+                            Team{task.teamName ? ` · ${task.teamName}` : ""}
                           </Badge>
                         ) : (
-                          <Badge variant="secondary" className="rounded-md font-medium">
-                            <span className="mr-1.5 inline-block h-1.5 w-1.5 rounded-full bg-muted-foreground/50" />
-                            Personal
-                          </Badge>
+                          <Badge variant="secondary">Personal</Badge>
                         )}
-                        {task.isArchived && (
-                          <TagPill className="border-amber-200/60 bg-amber-50/90 text-amber-950">
-                            Archived
-                          </TagPill>
-                        )}
-                        {isOverdue && (
-                          <Badge variant="destructive" className="rounded-md">
-                            Overdue
-                          </Badge>
-                        )}
+                        {task.isArchived && <Badge variant="outline">Archived</Badge>}
+                        {isOverdue && <Badge variant="destructive">Overdue</Badge>}
                         {isDueToday && !isOverdue && (
-                          <TagPill className="border-amber-200 bg-amber-100 text-amber-950">
-                            Due today
-                          </TagPill>
+                          <Badge variant="secondary">Due today</Badge>
                         )}
                       </div>
                     </PropertyRow>
@@ -298,7 +269,9 @@ export function TaskDetailModal({
                       {task.tags && task.tags.length > 0 ? (
                         <div className="flex flex-wrap gap-2">
                           {task.tags.map((tag, i) => (
-                            <TagPill key={`${tag}-${i}`}>{tag}</TagPill>
+                            <Badge key={`${tag}-${i}`} variant="outline">
+                              {tag}
+                            </Badge>
                           ))}
                         </div>
                       ) : (
@@ -338,9 +311,9 @@ export function TaskDetailModal({
                 </div>
               </div>
 
-              <div className="flex flex-shrink-0 flex-wrap gap-2 border-t px-6 py-4">
+              <DialogFooter>
                 <Button type="button" variant="secondary" onClick={onEdit} disabled={deleting}>
-                  <Pencil className="mr-2 h-4 w-4" />
+                  <Pencil className="h-4 w-4" />
                   Edit
                 </Button>
                 <Button
@@ -358,12 +331,12 @@ export function TaskDetailModal({
                 >
                   {task.isArchived ? (
                     <>
-                      <RotateCcw className="mr-2 h-4 w-4" />
+                      <RotateCcw className="h-4 w-4" />
                       Restore
                     </>
                   ) : (
                     <>
-                      <Archive className="mr-2 h-4 w-4" />
+                      <Archive className="h-4 w-4" />
                       Archive
                     </>
                   )}
@@ -375,11 +348,11 @@ export function TaskDetailModal({
                     disabled={deleting}
                     onClick={() => setConfirmDelete(true)}
                   >
-                    <Trash2 className="mr-2 h-4 w-4" />
+                    <Trash2 className="h-4 w-4" />
                     Delete permanently
                   </Button>
                 )}
-              </div>
+              </DialogFooter>
             </>
           )}
         </DialogContent>
@@ -388,9 +361,11 @@ export function TaskDetailModal({
       <AlertDialog open={confirmDelete} onOpenChange={setConfirmDelete}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle className="flex items-center gap-2">
-              <AlertTriangle className="h-4 w-4 text-destructive" />
-              Delete this task permanently?
+            <AlertDialogTitle>
+              <span className="flex items-center gap-2">
+                <AlertTriangle className="h-4 w-4" />
+                Delete this task permanently?
+              </span>
             </AlertDialogTitle>
             <AlertDialogDescription>
               This removes the task and all completion history forever. This action cannot

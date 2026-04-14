@@ -94,11 +94,11 @@ export function TeamSettingsModal({
   return (
     <>
       <Dialog open onOpenChange={(open) => { if (!open) onClose(); }}>
-        <DialogContent className="flex max-h-[90vh] flex-col gap-0 overflow-hidden p-0 sm:max-w-md">
-          <DialogHeader className="space-y-0 border-b px-5 pb-3 pt-5 text-left">
+        <DialogContent>
+          <DialogHeader>
             <DialogTitle>{teamName}</DialogTitle>
           </DialogHeader>
-          <div className="flex flex-1 flex-col gap-5 overflow-y-auto px-5 py-4">
+          <div className="flex max-h-[min(70vh,32rem)] flex-col gap-5 overflow-y-auto">
             <section>
               <h3 className="mb-2 text-sm font-medium text-foreground">Members</h3>
               {!members ? (
@@ -121,7 +121,6 @@ export function TeamSettingsModal({
                           type="button"
                           variant="link"
                           size="sm"
-                          className="h-auto p-0 text-xs text-destructive"
                           onClick={() =>
                             setRemoveMemberTarget({
                               userId: m.userId,
@@ -143,13 +142,12 @@ export function TeamSettingsModal({
                 <Separator />
                 <section>
                   <h3 className="mb-2 text-sm font-medium text-foreground">Invite by email</h3>
-                  <form onSubmit={handleInvite} className="flex gap-2">
+                  <form onSubmit={handleInvite} className="grid grid-cols-1 gap-2 sm:grid-cols-[1fr_auto]">
                     <Input
                       type="email"
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}
                       placeholder="friend@example.com"
-                      className="flex-1"
                     />
                     <Button type="submit" disabled={busy || !email.trim()}>
                       Invite
@@ -170,7 +168,6 @@ export function TeamSettingsModal({
                             type="button"
                             variant="ghost"
                             size="sm"
-                            className="h-auto p-0 text-xs text-muted-foreground hover:text-destructive"
                             onClick={async () => {
                               try {
                                 await revokeInvite({ inviteId: inv._id });
@@ -193,7 +190,6 @@ export function TeamSettingsModal({
                   <Button
                     type="button"
                     variant="link"
-                    className="h-auto p-0 text-destructive"
                     onClick={() => setDeleteTeamOpen(true)}
                   >
                     Delete team…

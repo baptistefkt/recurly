@@ -26,33 +26,27 @@ export function AssigneeAvatarGroup({
   const overflow = assignees.length - max;
 
   return (
-    <AvatarGroup className={cn(className)}>
-      {visible.map((a) => {
-        const label = a.name?.trim() || a.email || "Member";
-        return (
-          <AvatarGroupItem key={a.userId}>
-            <Avatar
-              className="h-6 w-6 border-2 border-card text-[10px] shadow-sm"
-              title={label}
-            >
-              {a.image ? <AvatarImage src={a.image} alt="" /> : null}
-              <AvatarFallback className="bg-muted text-[10px] font-medium">
-                {getUserInitials(a.name, a.email)}
-              </AvatarFallback>
+    <div className={cn(className)}>
+      <AvatarGroup>
+        {visible.map((a) => {
+          const label = a.name?.trim() || a.email || "Member";
+          return (
+            <AvatarGroupItem key={a.userId}>
+              <Avatar size="sm" title={label}>
+                {a.image ? <AvatarImage src={a.image} alt="" /> : null}
+                <AvatarFallback>{getUserInitials(a.name, a.email)}</AvatarFallback>
+              </Avatar>
+            </AvatarGroupItem>
+          );
+        })}
+        {overflow > 0 && (
+          <AvatarGroupItem>
+            <Avatar size="sm" title={`${overflow} more assignee${overflow === 1 ? "" : "s"}`}>
+              <AvatarFallback>+{overflow}</AvatarFallback>
             </Avatar>
           </AvatarGroupItem>
-        );
-      })}
-      {overflow > 0 && (
-        <AvatarGroupItem>
-          <div
-            className="flex h-6 w-6 items-center justify-center rounded-full border-2 border-card bg-muted text-[10px] font-semibold tabular-nums text-muted-foreground shadow-sm"
-            title={`${overflow} more assignee${overflow === 1 ? "" : "s"}`}
-          >
-            +{overflow}
-          </div>
-        </AvatarGroupItem>
-      )}
-    </AvatarGroup>
+        )}
+      </AvatarGroup>
+    </div>
   );
 }

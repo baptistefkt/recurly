@@ -61,7 +61,7 @@ export function SignInForm({
             autoComplete={flow === "signIn" ? "current-password" : "new-password"}
           />
         </div>
-        <Button type="submit" className="w-full" disabled={submitting}>
+        <Button type="submit" disabled={submitting}>
           {flow === "signIn" ? "Sign in" : "Sign up"}
         </Button>
         <div className="text-center text-sm text-muted-foreground">
@@ -73,19 +73,13 @@ export function SignInForm({
           <Button
             type="button"
             variant="link"
-            className="h-auto p-0 text-primary"
             onClick={() => setFlow(flow === "signIn" ? "signUp" : "signIn")}
           >
             {flow === "signIn" ? "Sign up instead" : "Sign in instead"}
           </Button>
         </div>
         {flow === "signIn" && onForgotPassword ? (
-          <Button
-            type="button"
-            variant="link"
-            className="w-full h-auto text-primary"
-            onClick={onForgotPassword}
-          >
+          <Button type="button" variant="link" onClick={onForgotPassword}>
             Forgot password?
           </Button>
         ) : null}

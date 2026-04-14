@@ -38,25 +38,18 @@ export function UserMenu({
 
   return (
     <DropdownMenu>
-      <DropdownMenuTrigger asChild>
-        <Button
-          variant="ghost"
-          size="icon"
-          className={cn("relative h-9 w-9 rounded-full p-0", className)}
-          aria-label="Open account menu"
-        >
-          <Avatar className="h-9 w-9">
-            {user?.image ? (
-              <AvatarImage src={user.image} alt="" className="object-cover" />
-            ) : null}
-            <AvatarFallback className="bg-primary/15 text-sm font-medium text-primary">
-              {initials}
-            </AvatarFallback>
-          </Avatar>
-        </Button>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="w-52">
-        <DropdownMenuLabel className="font-normal">
+      <div className={cn("relative", className)}>
+        <DropdownMenuTrigger asChild>
+          <Button variant="ghost" size="icon" aria-label="Open account menu">
+            <Avatar size="lg">
+              {user?.image ? <AvatarImage src={user.image} alt="" /> : null}
+              <AvatarFallback>{initials}</AvatarFallback>
+            </Avatar>
+          </Button>
+        </DropdownMenuTrigger>
+      </div>
+      <DropdownMenuContent align="end">
+        <DropdownMenuLabel>
           <p className="truncate text-sm font-medium leading-none">{display}</p>
           {user?.email && user.name ? (
             <p className="mt-1 truncate text-xs font-normal text-muted-foreground">{user.email}</p>

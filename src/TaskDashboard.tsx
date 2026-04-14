@@ -113,7 +113,6 @@ export function TaskDashboard() {
                 type="button"
                 variant={selectedTag === null ? "default" : "outline"}
                 size="sm"
-                className="h-7 shrink-0 rounded-full px-3 text-xs"
                 onClick={() => setSelectedTag(null)}
               >
                 All
@@ -124,7 +123,6 @@ export function TaskDashboard() {
                   type="button"
                   variant={selectedTag === label ? "default" : "outline"}
                   size="sm"
-                  className="h-7 shrink-0 rounded-full px-3 text-xs font-normal"
                   onClick={() =>
                     setSelectedTag((prev) => (prev === label ? null : label))
                   }
@@ -156,22 +154,21 @@ export function TaskDashboard() {
 
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <Tabs value={tab} onValueChange={(v) => setTab(v as Tab)}>
-            <TabsList className="h-auto w-full justify-start sm:w-auto">
+            <TabsList>
               {(["all", "upcoming", "archived"] as Tab[]).map((t) => (
-                <TabsTrigger key={t} value={t} className="capitalize">
+                <TabsTrigger key={t} value={t}>
                   {t}
                 </TabsTrigger>
               ))}
             </TabsList>
           </Tabs>
           <Button
-            className="shrink-0"
             onClick={() => {
               setEditTaskId(null);
               setShowModal(true);
             }}
           >
-            <Plus className="mr-1.5 h-4 w-4" />
+            <Plus className="h-4 w-4" />
             Add Task
           </Button>
         </div>
@@ -243,24 +240,18 @@ export function TaskDashboard() {
 
 function StatCard({ label, value, highlight }: { label: string; value: number; highlight?: boolean }) {
   return (
-    <Card
-      className={cn(
-        "text-center shadow-none",
-        highlight && "border-destructive/40 bg-destructive/5"
-      )}
-    >
-      <CardContent className="p-3 pt-3">
-        <div
-          className={cn(
-            "text-2xl font-bold",
-            highlight ? "text-destructive" : "text-foreground"
-          )}
-        >
-          {value}
-        </div>
-        <div className="mt-0.5 text-xs text-muted-foreground">{label}</div>
-      </CardContent>
-    </Card>
+    <div className="text-center">
+      <Card>
+        <CardContent>
+          <div
+            className={cn("text-2xl font-bold", highlight && "text-destructive")}
+          >
+            {value}
+          </div>
+          <div className="mt-0.5 text-xs text-muted-foreground">{label}</div>
+        </CardContent>
+      </Card>
+    </div>
   );
 }
 
@@ -285,9 +276,9 @@ function EmptyState({ tab, onAdd }: { tab: Tab; onAdd: () => void }) {
       <p className="font-medium text-foreground">{title}</p>
       <p className="mt-1 max-w-sm text-sm text-muted-foreground">{subtitle}</p>
       {tab !== "archived" && (
-        <Button className="mt-4" onClick={onAdd}>
-          Add Task
-        </Button>
+        <div className="mt-4">
+          <Button onClick={onAdd}>Add Task</Button>
+        </div>
       )}
     </div>
   );
