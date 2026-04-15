@@ -1,5 +1,5 @@
 import { useMutation, useQuery } from "convex/react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   AlertTriangle,
   Archive,
@@ -44,6 +44,8 @@ import {
 } from "@/components/ui/alert-dialog";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
+
+const taskSnapshotCache = new Map<Id<"tasks">, unknown>();
 
 function formatDateTime(ts: number): string {
   return new Date(ts).toLocaleString(undefined, {
@@ -103,16 +105,31 @@ export function TaskDetailModal({
   const [completing, setCompleting] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const cachedTask = taskSnapshotCache.get(taskId) as
+    | Exclude<typeof task, undefined | null>
+    | undefined;
+  const taskForRender = task === undefined ? cachedTask ?? undefined : task;
+
+  useEffect(() => {
+    if (task !== undefined && task !== null) {
+      taskSnapshotCache.set(taskId, task);
+    }
+  }, [task, taskId]);
 
   const now = Date.now();
-  const isOverdue = task && task.nextDueAt !== null && task.nextDueAt < now;
+  const isOverdue =
+    taskForRender !== undefined &&
+    taskForRender !== null &&
+    taskForRender.nextDueAt !== null &&
+    taskForRender.nextDueAt < now;
   const isDueToday =
-    task &&
-    task.nextDueAt !== null &&
-    task.nextDueAt >= now &&
-    task.nextDueAt < now + 24 * 60 * 60 * 1000;
+    taskForRender !== undefined &&
+    taskForRender !== null &&
+    taskForRender.nextDueAt !== null &&
+    taskForRender.nextDueAt >= now &&
+    taskForRender.nextDueAt < now + 24 * 60 * 60 * 1000;
 
-  const visibility = task?.visibility ?? "personal";
+  const visibility = taskForRender?.visibility ?? "personal";
 
   async function handleDelete() {
     setDeleting(true);
@@ -132,14 +149,17 @@ export function TaskDetailModal({
     <>
       <Dialog open onOpenChange={(open) => { if (!open) onClose(); }}>
         <DialogContent className="sm:max-w-3xl">
-          {task === undefined ? (
+          {taskForRender === undefined ? (
             <div className="flex min-h-[200px] flex-col items-center justify-center gap-3 py-8">
               <div className="h-8 w-8 animate-spin rounded-full border-2 border-primary border-t-transparent" />
               <p className="text-sm text-muted-foreground">Loading task…</p>
             </div>
-          ) : task === null ? (
+          ) : taskForRender === null ? (
             <div className="py-12 text-center text-sm text-muted-foreground">Task not found.</div>
           ) : (
+            (() => {
+              const task = taskForRender;
+              return (
             <>
               <DialogHeader>
                 <DialogTitle className="text-2xl font-bold">{task.title}</DialogTitle>
@@ -354,6 +374,8 @@ export function TaskDetailModal({
                 )}
               </DialogFooter>
             </>
+              );
+            })()
           )}
         </DialogContent>
       </Dialog>

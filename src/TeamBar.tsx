@@ -26,11 +26,13 @@ import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 export function TeamBar({
   filter,
   onFilterChange,
+  hasInitialScopeOverride,
   createTeamOpen,
   onCreateTeamOpenChange,
 }: {
   filter: TaskListFilter;
   onFilterChange: (f: TaskListFilter) => void;
+  hasInitialScopeOverride?: boolean;
   createTeamOpen: boolean;
   onCreateTeamOpenChange: (open: boolean) => void;
 }) {
@@ -45,8 +47,19 @@ export function TeamBar({
   const initRef = useRef(false);
 
   useEffect(() => {
-    if (initRef.current || memberships === undefined || user === undefined) return;
+    if (initRef.current || memberships === undefined || user == null) return;
     initRef.current = true;
+
+    if (hasInitialScopeOverride) {
+      if (
+        filter.type === "team" &&
+        !memberships.some((m: { teamId: Id<"teams"> }) => m.teamId === filter.teamId)
+      ) {
+        onFilterChange({ type: "personal" });
+      }
+      return;
+    }
+
     const scope = user.taskListScope;
     const savedTeam = user.lastSelectedTeamId;
     const hasTeam =
@@ -63,7 +76,7 @@ export function TeamBar({
     } else {
       onFilterChange({ type: "personal" });
     }
-  }, [memberships, user, onFilterChange]);
+  }, [filter, hasInitialScopeOverride, memberships, onFilterChange, user]);
 
   async function persistView(next: TaskListFilter) {
     onFilterChange(next);

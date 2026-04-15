@@ -1,6 +1,7 @@
-import { useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useQuery } from "convex/react";
 import { ClipboardList, Plus } from "lucide-react";
+import { useLocation, useSearch } from "wouter";
 import { api } from "../convex/_generated/api";
 import { TaskCard } from "./TaskCard";
 import { TaskModal } from "./TaskModal";
@@ -19,23 +20,51 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { usePushNotifications } from "@/hooks/usePushNotifications";
 import { ReminderSettingsModal } from "./ReminderSettingsModal";
-
-type StatusFilter = "all" | "overdue" | "doneToday" | "archived";
+import {
+  parseDashboardUrlState,
+  serializeDashboardUrlState,
+  type StatusFilter,
+} from "./urlState";
 
 function isTaskOverdue(task: { nextDueAt: number | null }, nowMs: number): boolean {
   return task.nextDueAt !== null && task.nextDueAt < nowMs;
 }
 
+function taskListFiltersEqual(a: TaskListFilter, b: TaskListFilter): boolean {
+  if (a.type !== b.type) return false;
+  if (a.type === "team" && b.type === "team") return a.teamId === b.teamId;
+  return true;
+}
+
 export function TaskDashboard() {
-  const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
-  const [showModal, setShowModal] = useState(false);
-  const [editTaskId, setEditTaskId] = useState<Id<"tasks"> | null>(null);
-  const [detailTaskId, setDetailTaskId] = useState<Id<"tasks"> | null>(null);
-  const [taskListFilter, setTaskListFilter] = useState<TaskListFilter>({
-    type: "personal",
-  });
+  const [location, navigate] = useLocation();
+  const search = useSearch();
+  const initialUrlState = useMemo(
+    () =>
+      parseDashboardUrlState(
+        typeof window !== "undefined" ? window.location.search : ""
+      ),
+    []
+  );
+  const skipNextUrlWriteRef = useRef(false);
+
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>(
+    initialUrlState.statusFilter
+  );
+  const [showModal, setShowModal] = useState(initialUrlState.compose !== null);
+  const [editTaskId, setEditTaskId] = useState<Id<"tasks"> | null>(
+    initialUrlState.compose?.mode === "edit" ? initialUrlState.compose.taskId : null
+  );
+  const [detailTaskId, setDetailTaskId] = useState<Id<"tasks"> | null>(
+    initialUrlState.detailTaskId
+  );
+  const [taskListFilter, setTaskListFilter] = useState<TaskListFilter>(
+    initialUrlState.taskListFilter
+  );
   const [createTeamOpen, setCreateTeamOpen] = useState(false);
-  const [selectedTag, setSelectedTag] = useState<string | null>(null);
+  const [selectedTag, setSelectedTag] = useState<string | null>(
+    initialUrlState.selectedTag
+  );
   const [showReminderSettings, setShowReminderSettings] = useState(false);
   usePushNotifications();
 
@@ -45,6 +74,74 @@ export function TaskDashboard() {
     listQueryArgs(taskListFilter, true, selectedTag)
   );
   const user = useQuery(api.auth.loggedInUser);
+
+  useEffect(() => {
+    const parsed = parseDashboardUrlState(search);
+    const parsedShowModal = parsed.compose !== null;
+    const parsedEditTaskId =
+      parsed.compose?.mode === "edit" ? parsed.compose.taskId : null;
+
+    let changed = false;
+    if (!taskListFiltersEqual(taskListFilter, parsed.taskListFilter)) {
+      setTaskListFilter(parsed.taskListFilter);
+      changed = true;
+    }
+    if (statusFilter !== parsed.statusFilter) {
+      setStatusFilter(parsed.statusFilter);
+      changed = true;
+    }
+    if (selectedTag !== parsed.selectedTag) {
+      setSelectedTag(parsed.selectedTag);
+      changed = true;
+    }
+    if (showModal !== parsedShowModal) {
+      setShowModal(parsedShowModal);
+      changed = true;
+    }
+    if (editTaskId !== parsedEditTaskId) {
+      setEditTaskId(parsedEditTaskId);
+      changed = true;
+    }
+    if (detailTaskId !== parsed.detailTaskId) {
+      setDetailTaskId(parsed.detailTaskId);
+      changed = true;
+    }
+
+    if (changed) {
+      skipNextUrlWriteRef.current = true;
+    }
+  }, [search]);
+
+  useEffect(() => {
+    if (skipNextUrlWriteRef.current) {
+      skipNextUrlWriteRef.current = false;
+      return;
+    }
+    const nextParams = serializeDashboardUrlState({
+      taskListFilter,
+      statusFilter,
+      selectedTag,
+      detailTaskId,
+      showModal,
+      editTaskId,
+    });
+    const nextQuery = nextParams.toString();
+    const currentQuery = search.startsWith("?") ? search.slice(1) : search;
+    if (nextQuery === currentQuery) return;
+
+    const nextUrl = nextQuery ? `${location}?${nextQuery}` : location;
+    navigate(nextUrl);
+  }, [
+    detailTaskId,
+    editTaskId,
+    location,
+    navigate,
+    search,
+    selectedTag,
+    showModal,
+    statusFilter,
+    taskListFilter,
+  ]);
 
   const now = Date.now();
   const isDoneToday = (ts: number | null | undefined) => {
@@ -97,6 +194,7 @@ export function TaskDashboard() {
             user={user ?? undefined}
             onAddTask={() => {
               setEditTaskId(null);
+              setDetailTaskId(null);
               setShowModal(true);
             }}
             onNewTeam={() => setCreateTeamOpen(true)}
@@ -113,6 +211,7 @@ export function TaskDashboard() {
             setTaskListFilter(next);
             setSelectedTag(null);
           }}
+          hasInitialScopeOverride={initialUrlState.hasScopeOverride}
           createTeamOpen={createTeamOpen}
           onCreateTeamOpenChange={setCreateTeamOpen}
         />
@@ -179,6 +278,7 @@ export function TaskDashboard() {
           <Button
             onClick={() => {
               setEditTaskId(null);
+              setDetailTaskId(null);
               setShowModal(true);
             }}
           >
@@ -192,11 +292,26 @@ export function TaskDashboard() {
             <div className="h-6 w-6 animate-spin rounded-full border-2 border-primary border-t-transparent" />
           </div>
         ) : displayedTasks.length === 0 ? (
-          <EmptyState filter={statusFilter} onAdd={() => { setEditTaskId(null); setShowModal(true); }} />
+          <EmptyState
+            filter={statusFilter}
+            onAdd={() => {
+              setEditTaskId(null);
+              setDetailTaskId(null);
+              setShowModal(true);
+            }}
+          />
         ) : statusFilter === "archived" ? (
           <div className="flex flex-col gap-2">
             {displayedTasks.map((task) => (
-              <TaskCard key={task._id} task={task} onDetail={() => setDetailTaskId(task._id)} />
+              <TaskCard
+                key={task._id}
+                task={task}
+                onDetail={() => {
+                  setShowModal(false);
+                  setEditTaskId(null);
+                  setDetailTaskId(task._id);
+                }}
+              />
             ))}
           </div>
         ) : (
@@ -213,7 +328,11 @@ export function TaskDashboard() {
                     <TaskCard
                       key={task._id}
                       task={task}
-                      onDetail={() => setDetailTaskId(task._id)}
+                      onDetail={() => {
+                        setShowModal(false);
+                        setEditTaskId(null);
+                        setDetailTaskId(task._id);
+                      }}
                     />
                   ))}
                 </div>

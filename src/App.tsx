@@ -1,5 +1,6 @@
 import { Authenticated, Unauthenticated } from "convex/react";
 import { useState } from "react";
+import { Route, Switch } from "wouter";
 import { PasswordResetForm } from "./PasswordResetForm";
 import { SignInForm } from "./SignInForm";
 import { Toaster } from "sonner";
@@ -17,10 +18,24 @@ export default function App() {
     <div className="min-h-screen flex flex-col bg-muted/40">
       <Toaster position="top-center" />
       <Authenticated>
-        <TaskDashboard />
+        <Switch>
+          <Route path="/">
+            <TaskDashboard />
+          </Route>
+          <Route>
+            <TaskDashboard />
+          </Route>
+        </Switch>
       </Authenticated>
       <Unauthenticated>
-        <LandingPage />
+        <Switch>
+          <Route path="/">
+            <LandingPage />
+          </Route>
+          <Route>
+            <LandingPage />
+          </Route>
+        </Switch>
       </Unauthenticated>
     </div>
   );
