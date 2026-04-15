@@ -21,6 +21,7 @@ import type * as pushTokens from "../pushTokens.js";
 import type * as recurrence from "../recurrence.js";
 import type * as reminderPreferences from "../reminderPreferences.js";
 import type * as router from "../router.js";
+import type * as stats from "../stats.js";
 import type * as taskReminders from "../taskReminders.js";
 import type * as tasks from "../tasks.js";
 import type * as teamAccess from "../teamAccess.js";
@@ -46,6 +47,7 @@ declare const fullApi: ApiFromModules<{
   recurrence: typeof recurrence;
   reminderPreferences: typeof reminderPreferences;
   router: typeof router;
+  stats: typeof stats;
   taskReminders: typeof taskReminders;
   tasks: typeof tasks;
   teamAccess: typeof teamAccess;

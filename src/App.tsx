@@ -3,6 +3,7 @@ import { useState } from "react";
 import { Route, Switch } from "wouter";
 import { PasswordResetForm } from "./PasswordResetForm";
 import { SignInForm } from "./SignInForm";
+import { StatsPage } from "./StatsPage";
 import { Toaster } from "sonner";
 import { TaskDashboard } from "./TaskDashboard";
 import {
@@ -19,6 +20,9 @@ export default function App() {
       <Toaster position="top-center" />
       <Authenticated>
         <Switch>
+          <Route path="/stats">
+            <StatsPage />
+          </Route>
           <Route path="/">
             <TaskDashboard />
           </Route>

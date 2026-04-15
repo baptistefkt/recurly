@@ -1,16 +1,21 @@
 import { useEffect, useMemo, useState } from "react";
+import { CheckCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
 function splitDuration(ms: number) {
+  const DAYS_IN_MONTH = 30;
   const totalSeconds = Math.floor(ms / 1000);
   const seconds = totalSeconds % 60;
   const totalMinutes = Math.floor(totalSeconds / 60);
   const minutes = totalMinutes % 60;
   const totalHours = Math.floor(totalMinutes / 60);
   const hours = totalHours % 24;
-  const days = Math.floor(totalHours / 24);
-  return { days, hours, minutes, seconds };
+  const totalDays = Math.floor(totalHours / 24);
+  const showMonths = totalDays > DAYS_IN_MONTH;
+  const months = showMonths ? Math.floor(totalDays / DAYS_IN_MONTH) : 0;
+  const days = showMonths ? totalDays % DAYS_IN_MONTH : totalDays;
+  return { months, days, hours, minutes, seconds, showMonths };
 }
 
 function CountCell({
@@ -49,6 +54,7 @@ export function TaskDueCountdown({
   busy?: boolean;
 }) {
   const [tick, setTick] = useState(0);
+  const [completedFlash, setCompletedFlash] = useState(false);
   useEffect(() => {
     const id = window.setInterval(() => setTick((t) => t + 1), 1000);
     return () => window.clearInterval(id);
@@ -69,7 +75,7 @@ export function TaskDueCountdown({
 
   const liveParts = useMemo(() => {
     if (nextDueAt == null) {
-      return { days: 0, hours: 0, minutes: 0, seconds: 0 };
+      return { months: 0, days: 0, hours: 0, minutes: 0, seconds: 0, showMonths: false };
     }
     return splitDuration(Math.abs(nextDueAt - Date.now()));
   }, [nextDueAt, tick]);
@@ -92,9 +98,15 @@ export function TaskDueCountdown({
 
       {showGrid && (
         <div
-          className="mb-5 flex w-full max-w-md justify-between gap-1.5 px-1 sm:mb-6 sm:max-w-lg sm:gap-3"
+          className={cn(
+            "mb-5 flex w-full max-w-md justify-between gap-1.5 px-1 sm:mb-6 sm:gap-3",
+            liveParts.showMonths ? "sm:max-w-xl" : "sm:max-w-lg"
+          )}
           aria-live="polite"
         >
+          {liveParts.showMonths && (
+            <CountCell value={liveParts.months} label="Months" overdue={overdue} />
+          )}
           <CountCell value={liveParts.days} label="Days" overdue={overdue} />
           <CountCell value={liveParts.hours} label="Hours" overdue={overdue} />
           <CountCell value={liveParts.minutes} label="Minutes" overdue={overdue} />
@@ -111,10 +123,28 @@ export function TaskDueCountdown({
       <div className="w-full max-w-sm [&>button]:w-full">
         <Button
           type="button"
-          disabled={busy}
-          onClick={() => void onMarkComplete()}
+          variant={completedFlash ? "secondary" : "default"}
+          disabled={busy || completedFlash}
+          onClick={async () => {
+            try {
+              await onMarkComplete();
+              setCompletedFlash(true);
+              window.setTimeout(() => setCompletedFlash(false), 1000);
+            } catch {
+              // Error feedback is handled by the parent caller.
+            }
+          }}
         >
-          Mark complete
+          {completedFlash ? (
+            <>
+              <CheckCheck className="h-4 w-4" />
+              Completed
+            </>
+          ) : busy ? (
+            "Marking..."
+          ) : (
+            "Mark complete"
+          )}
         </Button>
       </div>
     </div>

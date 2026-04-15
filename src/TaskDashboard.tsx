@@ -199,6 +199,9 @@ export function TaskDashboard() {
             }}
             onNewTeam={() => setCreateTeamOpen(true)}
             onReminderSettings={() => setShowReminderSettings(true)}
+            onOpenStats={() => {
+              navigate("/stats");
+            }}
           />
         </div>
       </header>
@@ -248,7 +251,10 @@ export function TaskDashboard() {
         <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
           {tagLabels !== undefined && tagLabels.length > 0 ? (
             <div className="min-w-0">
-              <div className="-mx-1 flex gap-1 overflow-x-auto pb-1">
+              <div className="-mx-1 flex items-center gap-1 overflow-x-auto pb-1">
+                <span className="shrink-0 px-1 text-xs font-medium text-muted-foreground">
+                  Filter by tags:
+                </span>
                 <Button
                   type="button"
                   variant={selectedTag === null ? "default" : "outline"}
@@ -318,7 +324,7 @@ export function TaskDashboard() {
           <div className="flex flex-col gap-6">
             {groupTasksByDueGroup(displayedTasks, now).map(({ group, tasks: sectionTasks }) => (
               <section key={group} className="flex flex-col gap-2">
-                <div className="sticky top-14 z-10 -mx-4 border-b border-border/80 bg-muted/80 px-4 py-2 backdrop-blur-sm supports-[backdrop-filter]:bg-muted/70">
+                <div className="sticky top-14 z-10 -mx-4 border-b border-border/80 bg-muted/80 px-4 py-2 backdrop-blur-sm supports-backdrop-filter:bg-muted/70">
                   <h3 className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
                     {DUE_GROUP_LABEL[group]}
                   </h3>

@@ -201,6 +201,9 @@ export function TaskDetailModal({
                       setCompleting(true);
                       try {
                         await markComplete({ taskId });
+                      } catch (err) {
+                        toast.error(err instanceof Error ? err.message : "Could not mark complete");
+                        throw err;
                       } finally {
                         setCompleting(false);
                       }

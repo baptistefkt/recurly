@@ -137,7 +137,7 @@ export function TeamBar({
         {selectedTeamId !== null && (
           <Button
             type="button"
-            variant="outline"
+            variant="ghost"
             size="icon"
             title="Team settings"
             onClick={() => setSettingsTeamId(selectedTeamId)}

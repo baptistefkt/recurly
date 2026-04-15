@@ -1,5 +1,6 @@
 import { useMutation } from "convex/react";
-import { CalendarClock, CalendarDays, Check, Repeat } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import { CalendarClock, CalendarDays, Check, CheckCheck, Repeat } from "lucide-react";
 import { api } from "../convex/_generated/api";
 import { Id } from "../convex/_generated/dataModel";
 import { AssigneeAvatarGroup, type TaskAssigneePreview } from "./AssigneeAvatarGroup";
@@ -9,6 +10,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
+import { toast } from "sonner";
 
 type TaskWithMeta = {
   _id: Id<"tasks">;
@@ -40,6 +42,9 @@ export function TaskCard({
   onDetail: () => void;
 }) {
   const markComplete = useMutation(api.completions.markComplete);
+  const [completing, setCompleting] = useState(false);
+  const [completedFlash, setCompletedFlash] = useState(false);
+  const flashTimeoutRef = useRef<number | null>(null);
   const now = Date.now();
   const isOverdue = task.nextDueAt !== null && task.nextDueAt < now;
   const isDueToday =
@@ -51,6 +56,14 @@ export function TaskCard({
   const userTags = task.tags ?? [];
   const visibleTags = userTags.slice(0, 3);
   const moreTagCount = userTags.length - visibleTags.length;
+
+  useEffect(() => {
+    return () => {
+      if (flashTimeoutRef.current !== null) {
+        window.clearTimeout(flashTimeoutRef.current);
+      }
+    };
+  }, []);
 
   return (
     <div
@@ -153,13 +166,38 @@ export function TaskCard({
                 type="button"
                 variant="outline"
                 size="icon"
-                title="Mark complete"
+                title={completedFlash ? "Completed" : "Mark complete"}
+                disabled={completing || completedFlash}
+                onMouseDown={(e) => e.stopPropagation()}
                 onClick={async (e) => {
                   e.stopPropagation();
-                  await markComplete({ taskId: task._id });
+                  if (completing) return;
+                  setCompleting(true);
+                  try {
+                    await markComplete({ taskId: task._id });
+                    setCompletedFlash(true);
+                    if (flashTimeoutRef.current !== null) {
+                      window.clearTimeout(flashTimeoutRef.current);
+                    }
+                    flashTimeoutRef.current = window.setTimeout(() => {
+                      setCompletedFlash(false);
+                    }, 1000);
+                  } catch (err) {
+                    toast.error(err instanceof Error ? err.message : "Could not mark complete");
+                  } finally {
+                    setCompleting(false);
+                  }
                 }}
+                className={cn(
+                  completedFlash &&
+                    "border-emerald-500/60 bg-emerald-500/10 text-emerald-600 hover:bg-emerald-500/15"
+                )}
               >
-                <Check className="h-4 w-4" />
+                {completedFlash ? (
+                  <CheckCheck className="h-4 w-4" />
+                ) : (
+                  <Check className="h-4 w-4" />
+                )}
               </Button>
             </div>
           </div>
