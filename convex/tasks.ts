@@ -14,6 +14,7 @@ const recurrenceUnitValidator = v.optional(
   v.union(v.literal("days"), v.literal("weeks"), v.literal("months"))
 );
 const recurrenceDaysOfWeekValidator = v.optional(v.array(v.number()));
+const recurrenceBoundaryInputValidator = v.optional(v.union(v.number(), v.null()));
 
 const recurrenceTypeValidator = v.union(
   v.literal("daily"),
@@ -127,6 +128,28 @@ async function collectAccessibleTaskDocs(
 function assertFiniteDueAtForOnce(dueAt: number | undefined): asserts dueAt is number {
   if (dueAt === undefined || !Number.isFinite(dueAt)) {
     throw new Error("One-time tasks need a due date and time");
+  }
+}
+
+function assertValidRecurringWindow(
+  recurrenceType: Doc<"tasks">["recurrenceType"],
+  startAt: number | undefined,
+  endAt: number | undefined
+) {
+  if (recurrenceType === "once") {
+    if (startAt !== undefined || endAt !== undefined) {
+      throw new Error("Start/end dates are only available for recurring tasks");
+    }
+    return;
+  }
+  if (startAt !== undefined && !Number.isFinite(startAt)) {
+    throw new Error("Invalid start date");
+  }
+  if (endAt !== undefined && !Number.isFinite(endAt)) {
+    throw new Error("Invalid end date");
+  }
+  if (startAt !== undefined && endAt !== undefined && endAt < startAt) {
+    throw new Error("End date must be after start date");
   }
 }
 
@@ -305,6 +328,8 @@ export const create = mutation({
     description: v.optional(v.string()),
     recurrenceType: recurrenceTypeValidator,
     dueAt: v.optional(v.number()),
+    recurrenceStartAt: recurrenceBoundaryInputValidator,
+    recurrenceEndAt: recurrenceBoundaryInputValidator,
     recurrenceInterval: v.optional(v.number()),
     recurrenceUnit: recurrenceUnitValidator,
     recurrenceDayOfWeek: v.optional(v.number()),
@@ -329,6 +354,13 @@ export const create = mutation({
     }
 
     const tags = normalizeTags(args.tags);
+    const recurrenceStartAt = args.recurrenceStartAt ?? undefined;
+    const recurrenceEndAt = args.recurrenceEndAt ?? undefined;
+    assertValidRecurringWindow(
+      args.recurrenceType,
+      recurrenceStartAt,
+      recurrenceEndAt
+    );
     if (args.recurrenceType === "once") {
       assertFiniteDueAtForOnce(args.dueAt);
       return await ctx.db.insert("tasks", {
@@ -336,6 +368,8 @@ export const create = mutation({
         description: args.description?.trim() || undefined,
         recurrenceType: "once",
         dueAt: args.dueAt,
+        recurrenceStartAt: undefined,
+        recurrenceEndAt: undefined,
         userId,
         isArchived: false,
         visibility: args.visibility,
@@ -356,6 +390,8 @@ export const create = mutation({
       title: args.title.trim(),
       description: args.description?.trim() || undefined,
       recurrenceType: args.recurrenceType,
+      recurrenceStartAt,
+      recurrenceEndAt,
       recurrenceInterval: args.recurrenceInterval,
       recurrenceUnit: args.recurrenceUnit,
       recurrenceDayOfWeek: args.recurrenceDayOfWeek,
@@ -378,6 +414,8 @@ export const update = mutation({
     description: v.optional(v.string()),
     recurrenceType: v.optional(recurrenceTypeValidator),
     dueAt: v.optional(v.number()),
+    recurrenceStartAt: recurrenceBoundaryInputValidator,
+    recurrenceEndAt: recurrenceBoundaryInputValidator,
     recurrenceInterval: v.optional(v.number()),
     recurrenceUnit: recurrenceUnitValidator,
     recurrenceDayOfWeek: v.optional(v.number()),
@@ -402,6 +440,10 @@ export const update = mutation({
       finalPatch.description = rest.description.trim() || undefined;
     if (rest.recurrenceType !== undefined)
       finalPatch.recurrenceType = rest.recurrenceType;
+    if (rest.recurrenceStartAt !== undefined)
+      finalPatch.recurrenceStartAt = rest.recurrenceStartAt ?? undefined;
+    if (rest.recurrenceEndAt !== undefined)
+      finalPatch.recurrenceEndAt = rest.recurrenceEndAt ?? undefined;
     if (rest.recurrenceInterval !== undefined)
       finalPatch.recurrenceInterval = rest.recurrenceInterval;
     if (rest.recurrenceUnit !== undefined)
@@ -420,6 +462,8 @@ export const update = mutation({
       assertFiniteDueAtForOnce(nextDue);
       finalPatch.recurrenceType = "once";
       finalPatch.dueAt = nextDue;
+      finalPatch.recurrenceStartAt = undefined;
+      finalPatch.recurrenceEndAt = undefined;
       finalPatch.recurrenceInterval = undefined;
       finalPatch.recurrenceUnit = undefined;
       finalPatch.recurrenceDayOfWeek = undefined;
@@ -430,6 +474,16 @@ export const update = mutation({
       assertFiniteDueAtForOnce(rest.dueAt);
       finalPatch.dueAt = rest.dueAt;
     }
+
+    const nextStartAt =
+      rest.recurrenceStartAt !== undefined
+        ? (rest.recurrenceStartAt ?? undefined)
+        : task.recurrenceStartAt;
+    const nextEndAt =
+      rest.recurrenceEndAt !== undefined
+        ? (rest.recurrenceEndAt ?? undefined)
+        : task.recurrenceEndAt;
+    assertValidRecurringWindow(nextRecurrenceType, nextStartAt, nextEndAt);
 
     if (nextRecurrenceType === "weeklyDays") {
       const nextWeekdays =

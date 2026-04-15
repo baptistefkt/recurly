@@ -54,6 +54,10 @@ const applicationTables = {
     ),
     /** Absolute due instant (epoch ms) when recurrenceType is "once". */
     dueAt: v.optional(v.number()),
+    /** Optional schedule start instant (epoch ms) for recurring tasks. */
+    recurrenceStartAt: v.optional(v.number()),
+    /** Optional schedule end instant (epoch ms) for recurring tasks. */
+    recurrenceEndAt: v.optional(v.number()),
     recurrenceInterval: v.optional(v.number()),
     recurrenceUnit: v.optional(v.union(v.literal("days"), v.literal("weeks"), v.literal("months"))),
     recurrenceDayOfWeek: v.optional(v.number()),

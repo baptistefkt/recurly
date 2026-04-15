@@ -118,8 +118,9 @@ export function TeamBar({
 
   return (
     <>
-      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+      <div className="flex items-center justify-between gap-2">
         <Tabs
+          className="min-w-0 overflow-x-auto"
           value={safeTabValue}
           onValueChange={(v) => void persistView(viewTabValueToFilter(v))}
         >

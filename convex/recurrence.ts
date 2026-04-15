@@ -16,6 +16,8 @@ export function computeNextDue(
     Doc<"tasks">,
     | "recurrenceType"
     | "dueAt"
+    | "recurrenceStartAt"
+    | "recurrenceEndAt"
     | "recurrenceInterval"
     | "recurrenceUnit"
     | "recurrenceDayOfWeek"
@@ -24,13 +26,32 @@ export function computeNextDue(
   lastCompletedAt: number | null,
   taskCreationTime: number
 ): number | null {
+  const startAt =
+    task.recurrenceStartAt !== undefined && Number.isFinite(task.recurrenceStartAt)
+      ? task.recurrenceStartAt
+      : undefined;
+  const endAt =
+    task.recurrenceEndAt !== undefined && Number.isFinite(task.recurrenceEndAt)
+      ? task.recurrenceEndAt
+      : undefined;
+
+  const withinWindow = (dueAt: number | null): number | null => {
+    if (dueAt === null) return null;
+    if (endAt !== undefined && dueAt > endAt) return null;
+    return dueAt;
+  };
+
   if (task.recurrenceType === "once") {
     if (lastCompletedAt !== null) return null;
     const at = task.dueAt;
-    return at !== undefined && Number.isFinite(at) ? at : null;
+    return at !== undefined && Number.isFinite(at) ? withinWindow(at) : null;
   }
 
-  const base = lastCompletedAt ?? taskCreationTime;
+  if (startAt !== undefined && endAt !== undefined && startAt > endAt) return null;
+  const base =
+    lastCompletedAt !== null
+      ? Math.max(lastCompletedAt, startAt ?? lastCompletedAt)
+      : (startAt ?? taskCreationTime);
   const d = new Date(base);
 
   switch (task.recurrenceType) {
@@ -62,7 +83,7 @@ export function computeNextDue(
         const candidate = (current + i) % 7;
         if (weekdays.includes(candidate)) {
           d.setDate(d.getDate() + i);
-          return d.getTime();
+          return withinWindow(d.getTime());
         }
       }
       return null;
@@ -70,5 +91,5 @@ export function computeNextDue(
     default:
       return null;
   }
-  return d.getTime();
+  return withinWindow(d.getTime());
 }

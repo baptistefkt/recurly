@@ -17,6 +17,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import {
   Dialog,
   DialogContent,
+  DialogFooter,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
@@ -25,7 +26,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
-import { X } from "lucide-react";
+import { ChevronDown, ChevronUp, X } from "lucide-react";
 
 const MAX_TAG_LEN = 40;
 const MAX_TAG_COUNT = 20;
@@ -92,6 +93,9 @@ export function TaskModal({
   const [recurrenceUnit, setRecurrenceUnit] = useState<RecurrenceUnit>("weeks");
   const [recurrenceDaysOfWeek, setRecurrenceDaysOfWeek] = useState<number[]>([1]);
   const [dueAtMs, setDueAtMs] = useState(defaultDueAtMs);
+  const [recurrenceStartAtMs, setRecurrenceStartAtMs] = useState<number | null>(null);
+  const [recurrenceEndAtMs, setRecurrenceEndAtMs] = useState<number | null>(null);
+  const [scheduleWindowOpen, setScheduleWindowOpen] = useState(false);
   const [saving, setSaving] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [shareWithTeam, setShareWithTeam] = useState(false);
@@ -145,13 +149,21 @@ export function TaskModal({
       setTags(existingTask.tags ?? []);
       if (existingTask.recurrenceType === "once") {
         setDueAtMs(existingTask.dueAt ?? defaultDueAtMs());
+        setRecurrenceStartAtMs(null);
+        setRecurrenceEndAtMs(null);
+      } else {
+        setRecurrenceStartAtMs(existingTask.recurrenceStartAt ?? null);
+        setRecurrenceEndAtMs(existingTask.recurrenceEndAt ?? null);
       }
     } else {
       setShareWithTeam(listMode === "team" && !!activeTeamId);
       setAssigneeUserIds([]);
       setRecurrenceDaysOfWeek([1]);
       setDueAtMs(defaultDueAtMs());
+      setRecurrenceStartAtMs(null);
+      setRecurrenceEndAtMs(null);
     }
+    setScheduleWindowOpen(false);
   }, [existingTask, listMode, activeTeamId]);
 
   const isEdit = !!taskId;
@@ -186,6 +198,14 @@ export function TaskModal({
           setSaving(false);
           return;
         }
+      } else if (
+        recurrenceStartAtMs !== null &&
+        recurrenceEndAtMs !== null &&
+        recurrenceEndAtMs < recurrenceStartAtMs
+      ) {
+        toast.error("End date must be after start date");
+        setSaving(false);
+        return;
       }
 
       const recurrenceFields =
@@ -195,6 +215,8 @@ export function TaskModal({
               recurrenceUnit: undefined,
               recurrenceDaysOfWeek: undefined,
               dueAt: dueAtMs,
+              recurrenceStartAt: null,
+              recurrenceEndAt: null,
             }
           : recurrenceType === "custom"
             ? {
@@ -202,6 +224,8 @@ export function TaskModal({
                 recurrenceUnit,
                 recurrenceDaysOfWeek: undefined,
                 dueAt: undefined,
+                recurrenceStartAt: recurrenceStartAtMs,
+                recurrenceEndAt: recurrenceEndAtMs,
               }
             : recurrenceType === "weeklyDays"
               ? {
@@ -209,12 +233,16 @@ export function TaskModal({
                   recurrenceUnit: undefined,
                   recurrenceDaysOfWeek,
                   dueAt: undefined,
+                  recurrenceStartAt: recurrenceStartAtMs,
+                  recurrenceEndAt: recurrenceEndAtMs,
                 }
               : {
                   recurrenceInterval: undefined,
                   recurrenceUnit: undefined,
                   recurrenceDaysOfWeek: undefined,
                   dueAt: undefined,
+                  recurrenceStartAt: recurrenceStartAtMs,
+                  recurrenceEndAt: recurrenceEndAtMs,
                 };
       if (recurrenceType === "weeklyDays" && recurrenceDaysOfWeek.length === 0) {
         toast.error("Pick at least one weekday");
@@ -291,7 +319,7 @@ export function TaskModal({
   return (
     <>
       <Dialog open onOpenChange={(open) => { if (!open) onClose(); }}>
-        <DialogContent>
+        <DialogContent className="max-h-[calc(100vh-2rem)] overflow-y-auto pb-0">
           <DialogHeader>
             <DialogTitle>{isEdit ? "Edit Task" : "New Task"}</DialogTitle>
           </DialogHeader>
@@ -501,6 +529,7 @@ export function TaskModal({
                       type="number"
                       min={1}
                       max={999}
+                      className="h-8 text-sm"
                       value={recurrenceInterval}
                       onChange={(e) => setRecurrenceInterval(Math.max(1, Number(e.target.value)))}
                     />
@@ -520,9 +549,71 @@ export function TaskModal({
                   </div>
                 </div>
               )}
+              {recurrenceType !== "once" && (
+                <div className="mt-2 space-y-3">
+                  <div className="flex items-center justify-between gap-2">
+                    <p className="text-sm font-medium">Schedule window (optional)</p>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon-sm"
+                      onClick={() => setScheduleWindowOpen((prev) => !prev)}
+                      aria-label={scheduleWindowOpen ? "Hide schedule window" : "Show schedule window"}
+                    >
+                      {scheduleWindowOpen ? (
+                        <ChevronUp className="h-4 w-4" />
+                      ) : (
+                        <ChevronDown className="h-4 w-4" />
+                      )}
+                    </Button>
+                  </div>
+                  {scheduleWindowOpen && (
+                    <>
+                      <div className="space-y-2">
+                        <label className="flex cursor-pointer items-center gap-2 text-sm">
+                          <Checkbox
+                            checked={recurrenceStartAtMs !== null}
+                            onCheckedChange={(checked) => {
+                              if (checked) {
+                                setRecurrenceStartAtMs((prev) => prev ?? defaultDueAtMs());
+                              } else {
+                                setRecurrenceStartAtMs(null);
+                              }
+                            }}
+                          />
+                          Start date
+                        </label>
+                        {recurrenceStartAtMs !== null && (
+                          <DueDateTimeFields valueMs={recurrenceStartAtMs} onChange={setRecurrenceStartAtMs} />
+                        )}
+                      </div>
+                      <div className="space-y-2">
+                        <label className="flex cursor-pointer items-center gap-2 text-sm">
+                          <Checkbox
+                            checked={recurrenceEndAtMs !== null}
+                            onCheckedChange={(checked) => {
+                              if (checked) {
+                                setRecurrenceEndAtMs(
+                                  (prev) => prev ?? recurrenceStartAtMs ?? defaultDueAtMs()
+                                );
+                              } else {
+                                setRecurrenceEndAtMs(null);
+                              }
+                            }}
+                          />
+                          End date
+                        </label>
+                        {recurrenceEndAtMs !== null && (
+                          <DueDateTimeFields valueMs={recurrenceEndAtMs} onChange={setRecurrenceEndAtMs} />
+                        )}
+                      </div>
+                    </>
+                  )}
+                </div>
+              )}
             </div>
 
-            <div className="flex gap-2 pt-1">
+            <DialogFooter className="sticky bottom-0 z-10 -mx-6 mt-2 flex gap-2 border-t border-border bg-popover px-6 py-3 sm:justify-start">
               <div className="min-w-0 flex-1 [&>button]:w-full">
                 <Button type="submit" disabled={saving || !title.trim()}>
                   {saving ? "Saving..." : isEdit ? "Save changes" : "Create task"}
@@ -537,7 +628,7 @@ export function TaskModal({
                   Delete
                 </Button>
               )}
-            </div>
+            </DialogFooter>
           </form>
         </DialogContent>
       </Dialog>
