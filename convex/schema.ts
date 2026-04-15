@@ -43,6 +43,7 @@ const applicationTables = {
     userId: v.id("users"),
     title: v.string(),
     description: v.optional(v.string()),
+    points: v.optional(v.number()),
     recurrenceType: v.union(
       v.literal("daily"),
       v.literal("weekly"),

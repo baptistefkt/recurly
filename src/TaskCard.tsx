@@ -14,6 +14,7 @@ type TaskWithMeta = {
   _id: Id<"tasks">;
   title: string;
   description?: string;
+  points?: number;
   recurrenceType: string;
   recurrenceInterval?: number;
   recurrenceUnit?: string;
@@ -74,6 +75,7 @@ export function TaskCard({
                 ) : (
                   <Badge variant="secondary">Personal</Badge>
                 )}
+                <Badge variant="outline">Pts {task.points ?? 1}</Badge>
                 {isOverdue && <Badge variant="destructive">Overdue</Badge>}
                 {isDueToday && !isOverdue && (
                   <Badge variant="secondary">Due today</Badge>

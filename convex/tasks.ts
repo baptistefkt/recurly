@@ -33,6 +33,8 @@ const visibilityValidator = v.union(
 
 const MAX_TAG_LEN = 40;
 const MAX_TAG_COUNT = 20;
+const MIN_TASK_POINTS = 1;
+const MAX_TASK_POINTS = 5;
 
 function normalizeTags(input: string[] | undefined): string[] {
   if (!input?.length) return [];
@@ -48,6 +50,18 @@ function normalizeTags(input: string[] | undefined): string[] {
     if (out.length >= MAX_TAG_COUNT) break;
   }
   return out;
+}
+
+function normalizeTaskPoints(points: number | undefined): number {
+  if (points === undefined) return MIN_TASK_POINTS;
+  if (
+    !Number.isInteger(points) ||
+    points < MIN_TASK_POINTS ||
+    points > MAX_TASK_POINTS
+  ) {
+    throw new Error("Points must be an integer between 1 and 5");
+  }
+  return points;
 }
 
 function selectByVisibility(
@@ -196,6 +210,7 @@ async function enrichSingleTask(
 
   return {
     ...task,
+    points: normalizeTaskPoints(task.points),
     lastCompletedAt: lastCompletion?.completedAt ?? null,
     completionCount: completionRows.length,
     nextDueAt: computeNextDue(
@@ -334,6 +349,7 @@ export const create = mutation({
     recurrenceUnit: recurrenceUnitValidator,
     recurrenceDayOfWeek: v.optional(v.number()),
     recurrenceDaysOfWeek: recurrenceDaysOfWeekValidator,
+    points: v.optional(v.number()),
     visibility: visibilityValidator,
     teamId: v.optional(v.id("teams")),
     assigneeUserIds: v.optional(v.array(v.id("users"))),
@@ -354,6 +370,7 @@ export const create = mutation({
     }
 
     const tags = normalizeTags(args.tags);
+    const points = normalizeTaskPoints(args.points);
     const recurrenceStartAt = args.recurrenceStartAt ?? undefined;
     const recurrenceEndAt = args.recurrenceEndAt ?? undefined;
     assertValidRecurringWindow(
@@ -366,6 +383,7 @@ export const create = mutation({
       return await ctx.db.insert("tasks", {
         title: args.title.trim(),
         description: args.description?.trim() || undefined,
+        points,
         recurrenceType: "once",
         dueAt: args.dueAt,
         recurrenceStartAt: undefined,
@@ -389,6 +407,7 @@ export const create = mutation({
     return await ctx.db.insert("tasks", {
       title: args.title.trim(),
       description: args.description?.trim() || undefined,
+      points,
       recurrenceType: args.recurrenceType,
       recurrenceStartAt,
       recurrenceEndAt,
@@ -420,6 +439,7 @@ export const update = mutation({
     recurrenceUnit: recurrenceUnitValidator,
     recurrenceDayOfWeek: v.optional(v.number()),
     recurrenceDaysOfWeek: recurrenceDaysOfWeekValidator,
+    points: v.optional(v.number()),
     visibility: v.optional(visibilityValidator),
     teamId: v.optional(v.id("teams")),
     assigneeUserIds: v.optional(v.array(v.id("users"))),
@@ -452,6 +472,7 @@ export const update = mutation({
       finalPatch.recurrenceDayOfWeek = rest.recurrenceDayOfWeek;
     if (rest.recurrenceDaysOfWeek !== undefined)
       finalPatch.recurrenceDaysOfWeek = normalizeWeekdays(rest.recurrenceDaysOfWeek);
+    if (rest.points !== undefined) finalPatch.points = normalizeTaskPoints(rest.points);
     if (rest.tags !== undefined) {
       finalPatch.tags = normalizeTags(rest.tags);
     }

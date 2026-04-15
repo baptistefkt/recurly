@@ -30,6 +30,8 @@ import { ChevronDown, ChevronUp, X } from "lucide-react";
 
 const MAX_TAG_LEN = 40;
 const MAX_TAG_COUNT = 20;
+const MIN_TASK_POINTS = 1;
+const MAX_TASK_POINTS = 5;
 
 type RecurrenceType =
   | "daily"
@@ -88,6 +90,7 @@ export function TaskModal({
 
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
+  const [points, setPoints] = useState<number>(MIN_TASK_POINTS);
   const [recurrenceType, setRecurrenceType] = useState<RecurrenceType>("weekly");
   const [recurrenceInterval, setRecurrenceInterval] = useState(1);
   const [recurrenceUnit, setRecurrenceUnit] = useState<RecurrenceUnit>("weeks");
@@ -133,6 +136,7 @@ export function TaskModal({
     if (existingTask) {
       setTitle(existingTask.title);
       setDescription(existingTask.description ?? "");
+      setPoints(existingTask.points ?? MIN_TASK_POINTS);
       setRecurrenceType(existingTask.recurrenceType as RecurrenceType);
       setRecurrenceInterval(existingTask.recurrenceInterval ?? 1);
       setRecurrenceUnit((existingTask.recurrenceUnit as RecurrenceUnit) ?? "weeks");
@@ -157,6 +161,7 @@ export function TaskModal({
       }
     } else {
       setShareWithTeam(listMode === "team" && !!activeTeamId);
+      setPoints(MIN_TASK_POINTS);
       setAssigneeUserIds([]);
       setRecurrenceDaysOfWeek([1]);
       setDueAtMs(defaultDueAtMs());
@@ -204,6 +209,15 @@ export function TaskModal({
         recurrenceEndAtMs < recurrenceStartAtMs
       ) {
         toast.error("End date must be after start date");
+        setSaving(false);
+        return;
+      }
+      if (
+        !Number.isInteger(points) ||
+        points < MIN_TASK_POINTS ||
+        points > MAX_TASK_POINTS
+      ) {
+        toast.error("Points must be between 1 and 5");
         setSaving(false);
         return;
       }
@@ -266,6 +280,7 @@ export function TaskModal({
           taskId,
           title: title.trim(),
           description: description.trim() || undefined,
+          points,
           recurrenceType,
           ...recurrenceFields,
           visibility,
@@ -284,6 +299,7 @@ export function TaskModal({
         await createTask({
           title: title.trim(),
           description: description.trim() || undefined,
+          points,
           recurrenceType,
           ...recurrenceFields,
           visibility,
@@ -347,6 +363,29 @@ export function TaskModal({
                 placeholder="Any extra details..."
                 rows={2}
               />
+            </div>
+
+            <div className="space-y-2">
+              <Label>Points</Label>
+              <div className="grid grid-cols-5 gap-1">
+                {Array.from({ length: MAX_TASK_POINTS }, (_, index) => {
+                  const value = index + 1;
+                  return (
+                    <Button
+                      key={value}
+                      type="button"
+                      variant={points === value ? "default" : "outline"}
+                      size="sm"
+                      onClick={() => setPoints(value)}
+                    >
+                      {value}
+                    </Button>
+                  );
+                })}
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Use 1 for small tasks and 5 for high-impact tasks.
+              </p>
             </div>
 
             <div className="space-y-2">

@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import {
   AlertTriangle,
   Archive,
+  BarChart3,
   CalendarClock,
   Clock,
   FileText,
@@ -246,6 +247,10 @@ export function TaskDetailModal({
                           <Badge variant="secondary">Due today</Badge>
                         )}
                       </div>
+                    </PropertyRow>
+
+                    <PropertyRow icon={BarChart3} label="Points">
+                      <span>{task.points ?? 1}</span>
                     </PropertyRow>
 
                     <PropertyRow
