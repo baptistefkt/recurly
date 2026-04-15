@@ -66,9 +66,9 @@ export function TaskCard({
     >
       <Card size="sm">
         <CardContent>
-          <div className="flex flex-1 gap-2.5 py-2">
+          <div className="flex flex-1 gap-2.5">
             <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-1">
-              <div className="flex min-h-[1.375rem] flex-wrap items-center gap-1.5">
+              <div className="flex min-h-5.5 flex-wrap items-center gap-1.5">
                 {(task.visibility ?? "personal") === "team" ? (
                   <Badge variant="secondary">{task.teamName?.trim() || "Team"}</Badge>
                 ) : (

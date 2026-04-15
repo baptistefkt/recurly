@@ -142,7 +142,7 @@ export function TaskDetailModal({
           ) : (
             <>
               <DialogHeader>
-                <DialogTitle>{task.title}</DialogTitle>
+                <DialogTitle className="text-2xl font-bold">{task.title}</DialogTitle>
               </DialogHeader>
 
               <div className="max-h-[min(70vh,32rem)] min-w-0 overflow-y-auto overflow-x-hidden">
