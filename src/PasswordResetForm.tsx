@@ -45,11 +45,11 @@ export function PasswordResetForm({ onBack }: { onBack: () => void }) {
             />
           </div>
           <input name="flow" type="hidden" value="reset" />
-          <Button type="submit" className="w-full" disabled={submitting}>
+          <Button type="submit" disabled={submitting}>
             Send code
           </Button>
         </form>
-        <Button type="button" variant="link" className="w-full" onClick={onBack}>
+        <Button type="button" variant="link" onClick={onBack}>
           Back to sign in
         </Button>
       </div>
@@ -100,19 +100,14 @@ export function PasswordResetForm({ onBack }: { onBack: () => void }) {
         </div>
         <input name="email" value={step.email} type="hidden" readOnly />
         <input name="flow" type="hidden" value="reset-verification" />
-        <Button type="submit" className="w-full" disabled={submitting}>
+        <Button type="submit" disabled={submitting}>
           Set new password
         </Button>
-        <Button
-          type="button"
-          variant="outline"
-          className="w-full"
-          onClick={() => setStep("forgot")}
-        >
+        <Button type="button" variant="outline" onClick={() => setStep("forgot")}>
           Request a new code
         </Button>
       </form>
-      <Button type="button" variant="link" className="w-full" onClick={onBack}>
+      <Button type="button" variant="link" onClick={onBack}>
         Back to sign in
       </Button>
     </div>

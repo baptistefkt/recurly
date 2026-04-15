@@ -291,11 +291,11 @@ export function TaskModal({
   return (
     <>
       <Dialog open onOpenChange={(open) => { if (!open) onClose(); }}>
-        <DialogContent className="max-h-[90vh] overflow-y-auto gap-0 p-0 sm:max-w-md">
-          <DialogHeader className="space-y-0 border-b px-6 py-4 text-left">
+        <DialogContent>
+          <DialogHeader>
             <DialogTitle>{isEdit ? "Edit Task" : "New Task"}</DialogTitle>
           </DialogHeader>
-          <form onSubmit={handleSubmit} className="flex flex-col gap-4 px-6 py-4">
+          <form onSubmit={handleSubmit} className="flex flex-col gap-4">
             <div className="space-y-2">
               <Label htmlFor="task-title">Task name</Label>
               <Input
@@ -318,7 +318,6 @@ export function TaskModal({
                 onChange={(e) => setDescription(e.target.value)}
                 placeholder="Any extra details..."
                 rows={2}
-                className="resize-none"
               />
             </div>
 
@@ -329,15 +328,12 @@ export function TaskModal({
               {tags.length > 0 && (
                 <div className="flex flex-wrap gap-1.5">
                   {tags.map((tag) => (
-                    <Badge
-                      key={tag}
-                      variant="secondary"
-                      className="gap-1 pr-1 font-normal"
-                    >
+                    <Badge key={tag} variant="secondary">
                       {tag}
-                      <button
+                      <Button
                         type="button"
-                        className="rounded-sm p-0.5 hover:bg-muted-foreground/20"
+                        variant="ghost"
+                        size="icon-xs"
                         onClick={() =>
                           setTags((prev) =>
                             prev.filter(
@@ -348,7 +344,7 @@ export function TaskModal({
                         aria-label={`Remove ${tag}`}
                       >
                         <X className="h-3 w-3" />
-                      </button>
+                      </Button>
                     </Badge>
                   ))}
                 </div>
@@ -381,7 +377,6 @@ export function TaskModal({
                       type="button"
                       variant="outline"
                       size="sm"
-                      className="h-7 rounded-full px-2.5 text-xs font-normal"
                       onClick={() => {
                         setTags((prev) => mergeTagIntoList(prev, t));
                       }}
@@ -396,19 +391,17 @@ export function TaskModal({
             {showSharing && (
               <div className="space-y-3">
                 <Label>Visibility</Label>
-                <div className="flex rounded-md border border-input p-1 text-sm">
+                <div className="grid grid-cols-2 gap-1">
                   <Button
                     type="button"
-                    variant={!shareWithTeam ? "default" : "ghost"}
-                    className="flex-1"
+                    variant={!shareWithTeam ? "default" : "outline"}
                     onClick={() => setShareWithTeam(false)}
                   >
                     Only me
                   </Button>
                   <Button
                     type="button"
-                    variant={shareWithTeam ? "default" : "ghost"}
-                    className="flex-1"
+                    variant={shareWithTeam ? "default" : "outline"}
                     onClick={() => setShareWithTeam(true)}
                   >
                     Whole team
@@ -455,7 +448,6 @@ export function TaskModal({
                     type="button"
                     variant={recurrenceType === r ? "default" : "outline"}
                     size="sm"
-                    className="capitalize"
                     onClick={() => {
                       setRecurrenceType(r);
                       if (r === "once") setDueAtMs((prev) => (Number.isFinite(prev) ? prev : defaultDueAtMs()));
@@ -492,7 +484,6 @@ export function TaskModal({
                           type="button"
                           variant={active ? "default" : "outline"}
                           size="sm"
-                          className="h-8 min-w-11 rounded-full px-3"
                           onClick={() => toggleWeekday(day.value)}
                         >
                           {day.label}
@@ -505,22 +496,22 @@ export function TaskModal({
               {recurrenceType === "custom" && (
                 <div className="mt-2 flex flex-wrap items-center gap-2">
                   <span className="text-sm text-muted-foreground">Every</span>
-                  <Input
-                    type="number"
-                    min={1}
-                    max={999}
-                    className="w-16 text-center"
-                    value={recurrenceInterval}
-                    onChange={(e) => setRecurrenceInterval(Math.max(1, Number(e.target.value)))}
-                  />
-                  <div className="flex flex-1 rounded-md border border-input p-0.5">
+                  <div className="w-16 shrink-0 [&_input]:text-center">
+                    <Input
+                      type="number"
+                      min={1}
+                      max={999}
+                      value={recurrenceInterval}
+                      onChange={(e) => setRecurrenceInterval(Math.max(1, Number(e.target.value)))}
+                    />
+                  </div>
+                  <div className="flex flex-wrap items-center gap-1.5">
                     {(["days", "weeks", "months"] as RecurrenceUnit[]).map((u) => (
                       <Button
                         key={u}
                         type="button"
-                        variant={recurrenceUnit === u ? "default" : "ghost"}
+                        variant={recurrenceUnit === u ? "default" : "outline"}
                         size="sm"
-                        className="flex-1"
                         onClick={() => setRecurrenceUnit(u)}
                       >
                         {u}
@@ -532,9 +523,11 @@ export function TaskModal({
             </div>
 
             <div className="flex gap-2 pt-1">
-              <Button type="submit" className="flex-1" disabled={saving || !title.trim()}>
-                {saving ? "Saving..." : isEdit ? "Save changes" : "Create task"}
-              </Button>
+              <div className="min-w-0 flex-1 [&>button]:w-full">
+                <Button type="submit" disabled={saving || !title.trim()}>
+                  {saving ? "Saving..." : isEdit ? "Save changes" : "Create task"}
+                </Button>
+              </div>
               {isEdit && (
                 <Button
                   type="button"

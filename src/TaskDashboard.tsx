@@ -16,20 +16,18 @@ import {
   type TaskListFilter,
 } from "./taskListFilter";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
 import { usePushNotifications } from "@/hooks/usePushNotifications";
 import { ReminderSettingsModal } from "./ReminderSettingsModal";
 
-type Tab = "all" | "upcoming" | "archived";
+type StatusFilter = "all" | "overdue" | "doneToday" | "archived";
 
 function isTaskOverdue(task: { nextDueAt: number | null }, nowMs: number): boolean {
   return task.nextDueAt !== null && task.nextDueAt < nowMs;
 }
 
 export function TaskDashboard() {
-  const [tab, setTab] = useState<Tab>("all");
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
   const [showModal, setShowModal] = useState(false);
   const [editTaskId, setEditTaskId] = useState<Id<"tasks"> | null>(null);
   const [detailTaskId, setDetailTaskId] = useState<Id<"tasks"> | null>(null);
@@ -44,18 +42,29 @@ export function TaskDashboard() {
   const tagLabels = useQuery(api.tasks.distinctTags, {});
   const tasks = useQuery(
     api.tasks.list,
-    listQueryArgs(taskListFilter, tab === "archived", selectedTag)
+    listQueryArgs(taskListFilter, true, selectedTag)
   );
   const user = useQuery(api.auth.loggedInUser);
 
   const now = Date.now();
+  const isDoneToday = (ts: number | null | undefined) => {
+    if (!ts) return false;
+    const d = new Date(ts);
+    const today = new Date();
+    return d.toDateString() === today.toDateString();
+  };
 
   const displayedTasks = (() => {
     if (!tasks) return [];
-    if (tab === "archived") return tasks.filter((t) => t.isArchived);
+    const archived = tasks.filter((t) => t.isArchived);
     const active = tasks.filter((t) => !t.isArchived);
+    if (statusFilter === "archived") return archived;
     const filtered =
-      tab === "upcoming" ? active.filter((t) => !isTaskOverdue(t, now)) : active;
+      statusFilter === "overdue"
+        ? active.filter((t) => isTaskOverdue(t, now))
+        : statusFilter === "doneToday"
+          ? active.filter((t) => isDoneToday(t.lastCompletedAt))
+          : active;
     return [...filtered].sort((a, b) => {
       const aNext = a.nextDueAt ?? Infinity;
       const bNext = b.nextDueAt ?? Infinity;
@@ -63,8 +72,12 @@ export function TaskDashboard() {
     });
   })();
 
+  const activeTaskCount = tasks?.filter((t) => !t.isArchived).length ?? 0;
   const overdueCount =
     tasks?.filter((t) => !t.isArchived && t.nextDueAt !== null && t.nextDueAt < now).length ?? 0;
+  const doneTodayCount =
+    tasks?.filter((t) => !t.isArchived && isDoneToday(t.lastCompletedAt)).length ?? 0;
+  const archivedCount = tasks?.filter((t) => t.isArchived).length ?? 0;
 
   return (
     <div className="flex min-h-screen flex-col bg-muted/40">
@@ -103,75 +116,73 @@ export function TaskDashboard() {
           createTeamOpen={createTeamOpen}
           onCreateTeamOpenChange={setCreateTeamOpen}
         />
-        {tagLabels !== undefined && tagLabels.length > 0 && (
-          <div className="flex flex-col gap-1.5">
-            <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-              Filter by tag
-            </p>
-            <div className="-mx-1 flex gap-1.5 overflow-x-auto pb-1">
-              <Button
-                type="button"
-                variant={selectedTag === null ? "default" : "outline"}
-                size="sm"
-                className="h-7 shrink-0 rounded-full px-3 text-xs"
-                onClick={() => setSelectedTag(null)}
-              >
-                All
-              </Button>
-              {tagLabels.map((label) => (
-                <Button
-                  key={label}
-                  type="button"
-                  variant={selectedTag === label ? "default" : "outline"}
-                  size="sm"
-                  className="h-7 shrink-0 rounded-full px-3 text-xs font-normal"
-                  onClick={() =>
-                    setSelectedTag((prev) => (prev === label ? null : label))
-                  }
-                >
-                  {label}
-                </Button>
-              ))}
-            </div>
+        <div className="overflow-hidden rounded-2xl bg-background/80">
+          <div className="grid grid-cols-4 divide-x divide-border/70">
+            <StatColumn
+              label="Total Tasks"
+              value={activeTaskCount}
+              active={statusFilter === "all"}
+              onClick={() => setStatusFilter("all")}
+            />
+            <StatColumn
+              label="Overdue"
+              value={overdueCount}
+              valueClassName={overdueCount > 0 ? "text-destructive" : undefined}
+              active={statusFilter === "overdue"}
+              onClick={() => setStatusFilter("overdue")}
+            />
+            <StatColumn
+              label="Done Today"
+              value={doneTodayCount}
+              active={statusFilter === "doneToday"}
+              onClick={() => setStatusFilter("doneToday")}
+            />
+            <StatColumn
+              label="Archived"
+              value={archivedCount}
+              active={statusFilter === "archived"}
+              onClick={() => setStatusFilter("archived")}
+            />
           </div>
-        )}
-        <div className="grid grid-cols-3 gap-3">
-          <StatCard
-            label="Total Tasks"
-            value={tasks?.filter((t) => !t.isArchived).length ?? 0}
-          />
-          <StatCard label="Overdue" value={overdueCount} highlight={overdueCount > 0} />
-          <StatCard
-            label="Done Today"
-            value={
-              tasks?.filter((t) => {
-                if (!t.lastCompletedAt) return false;
-                const d = new Date(t.lastCompletedAt);
-                const today = new Date();
-                return d.toDateString() === today.toDateString();
-              }).length ?? 0
-            }
-          />
         </div>
 
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <Tabs value={tab} onValueChange={(v) => setTab(v as Tab)}>
-            <TabsList className="h-auto w-full justify-start sm:w-auto">
-              {(["all", "upcoming", "archived"] as Tab[]).map((t) => (
-                <TabsTrigger key={t} value={t} className="capitalize">
-                  {t}
-                </TabsTrigger>
-              ))}
-            </TabsList>
-          </Tabs>
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+          {tagLabels !== undefined && tagLabels.length > 0 ? (
+            <div className="min-w-0">
+              <div className="-mx-1 flex gap-1 overflow-x-auto pb-1">
+                <Button
+                  type="button"
+                  variant={selectedTag === null ? "default" : "outline"}
+                  size="xs"
+                  onClick={() => setSelectedTag(null)}
+                >
+                  All
+                </Button>
+                {tagLabels.map((label) => (
+                  <Button
+                    key={label}
+                    type="button"
+                    variant={selectedTag === label ? "default" : "outline"}
+                    size="xs"
+                    onClick={() =>
+                      setSelectedTag((prev) => (prev === label ? null : label))
+                    }
+                  >
+                    {label}
+                  </Button>
+                ))}
+              </div>
+            </div>
+          ) : (
+            <div />
+          )}
           <Button
-            className="shrink-0"
             onClick={() => {
               setEditTaskId(null);
               setShowModal(true);
             }}
           >
-            <Plus className="mr-1.5 h-4 w-4" />
+            <Plus className="h-4 w-4" />
             Add Task
           </Button>
         </div>
@@ -181,8 +192,8 @@ export function TaskDashboard() {
             <div className="h-6 w-6 animate-spin rounded-full border-2 border-primary border-t-transparent" />
           </div>
         ) : displayedTasks.length === 0 ? (
-          <EmptyState tab={tab} onAdd={() => { setEditTaskId(null); setShowModal(true); }} />
-        ) : tab === "archived" ? (
+          <EmptyState filter={statusFilter} onAdd={() => { setEditTaskId(null); setShowModal(true); }} />
+        ) : statusFilter === "archived" ? (
           <div className="flex flex-col gap-2">
             {displayedTasks.map((task) => (
               <TaskCard key={task._id} task={task} onDetail={() => setDetailTaskId(task._id)} />
@@ -241,41 +252,56 @@ export function TaskDashboard() {
   );
 }
 
-function StatCard({ label, value, highlight }: { label: string; value: number; highlight?: boolean }) {
+function StatColumn({
+  label,
+  value,
+  valueClassName,
+  active,
+  onClick,
+}: {
+  label: string;
+  value: number;
+  valueClassName?: string;
+  active?: boolean;
+  onClick?: () => void;
+}) {
   return (
-    <Card
+    <button
+      type="button"
       className={cn(
-        "text-center shadow-none",
-        highlight && "border-destructive/40 bg-destructive/5"
+        "cursor-pointer px-3 py-2.5 text-center transition-colors sm:px-4",
+        active ? "bg-muted dark:bg-muted/60" : "hover:bg-muted/25"
       )}
+      onClick={onClick}
+      aria-pressed={active}
     >
-      <CardContent className="p-3 pt-3">
-        <div
-          className={cn(
-            "text-2xl font-bold",
-            highlight ? "text-destructive" : "text-foreground"
-          )}
-        >
-          {value}
-        </div>
-        <div className="mt-0.5 text-xs text-muted-foreground">{label}</div>
-      </CardContent>
-    </Card>
+      <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+        {label}
+      </p>
+      <p className={cn("mt-1 text-xl font-semibold tabular-nums", valueClassName)}>
+        {value}
+      </p>
+    </button>
   );
 }
+ 
 
-function EmptyState({ tab, onAdd }: { tab: Tab; onAdd: () => void }) {
+function EmptyState({ filter, onAdd }: { filter: StatusFilter; onAdd: () => void }) {
   const title =
-    tab === "archived"
+    filter === "archived"
       ? "No archived tasks"
-      : tab === "upcoming"
-        ? "Nothing upcoming"
+      : filter === "overdue"
+        ? "No overdue tasks"
+        : filter === "doneToday"
+          ? "Nothing done today yet"
         : "No tasks yet";
   const subtitle =
-    tab === "archived"
+    filter === "archived"
       ? "Archived tasks will appear here"
-      : tab === "upcoming"
-        ? "You have no on-time tasks due ahead. Open All to see overdue items."
+      : filter === "overdue"
+        ? "Great job staying on top of your tasks."
+        : filter === "doneToday"
+          ? "Complete a task and it will appear here."
         : "Add your first recurring task to get started";
   return (
     <div className="flex flex-col items-center justify-center py-16 text-center">
@@ -284,10 +310,10 @@ function EmptyState({ tab, onAdd }: { tab: Tab; onAdd: () => void }) {
       </div>
       <p className="font-medium text-foreground">{title}</p>
       <p className="mt-1 max-w-sm text-sm text-muted-foreground">{subtitle}</p>
-      {tab !== "archived" && (
-        <Button className="mt-4" onClick={onAdd}>
-          Add Task
-        </Button>
+      {filter !== "archived" && (
+        <div className="mt-4">
+          <Button onClick={onAdd}>Add Task</Button>
+        </div>
       )}
     </div>
   );

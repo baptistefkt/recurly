@@ -31,29 +31,33 @@ function LandingPage() {
 
   return (
     <div className="min-h-screen flex flex-col items-center justify-center p-6 bg-background">
-      <Card className="w-full max-w-sm border shadow-md">
-        <CardHeader className="space-y-3 text-center">
-          <div className="mx-auto flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-2xl bg-black ring-1 ring-border/40">
-            <img
-              src="/icon-192.png"
-              alt=""
-              width={56}
-              height={56}
-              className="h-full w-full object-cover"
-              decoding="async"
-            />
-          </div>
-          <CardTitle className="text-2xl font-bold tracking-tight">Recurly</CardTitle>
-          <CardDescription>Track your recurring tasks with ease</CardDescription>
-        </CardHeader>
-        <CardContent>
-          {screen === "signIn" ? (
-            <SignInForm onForgotPassword={() => setScreen("reset")} />
-          ) : (
-            <PasswordResetForm onBack={() => setScreen("signIn")} />
-          )}
-        </CardContent>
-      </Card>
+      <div className="w-full max-w-sm">
+        <Card>
+          <CardHeader>
+            <div className="text-center">
+              <div className="mx-auto flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-2xl bg-black ring-1 ring-border/40">
+                <img
+                  src="/icon-192.png"
+                  alt=""
+                  width={56}
+                  height={56}
+                  className="h-full w-full object-cover"
+                  decoding="async"
+                />
+              </div>
+              <CardTitle>Recurly</CardTitle>
+              <CardDescription>Track your recurring tasks with ease</CardDescription>
+            </div>
+          </CardHeader>
+          <CardContent>
+            {screen === "signIn" ? (
+              <SignInForm onForgotPassword={() => setScreen("reset")} />
+            ) : (
+              <PasswordResetForm onBack={() => setScreen("signIn")} />
+            )}
+          </CardContent>
+        </Card>
+      </div>
     </div>
   );
 }

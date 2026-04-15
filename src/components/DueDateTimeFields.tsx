@@ -54,28 +54,24 @@ export function DueDateTimeFields({
 
   return (
     <div className={cn("space-y-3", className)}>
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start">
         <div className="min-w-0 flex-1 space-y-1.5">
-          <Label className="text-muted-foreground">Date</Label>
+          <Label>Date</Label>
           <Popover open={calendarOpen} onOpenChange={setCalendarOpen}>
-            <PopoverTrigger asChild>
-              <Button
-                type="button"
-                variant="outline"
-                className={cn(
-                  "h-9 w-full justify-start pl-3 text-left font-normal",
-                  !Number.isFinite(valueMs) && "text-muted-foreground"
-                )}
-              >
-                <CalendarIcon className="mr-2 h-4 w-4 shrink-0 opacity-70" />
-                {Number.isFinite(valueMs) ? format(date, "PPP") : "Pick a date"}
-              </Button>
-            </PopoverTrigger>
-            <PopoverContent
-              className="z-[100] w-auto overflow-hidden p-0"
-              align="start"
-              sideOffset={4}
+            <div
+              className={cn(
+                "w-full [&_button]:w-full [&_button]:justify-start",
+                !Number.isFinite(valueMs) && "[&_button]:text-muted-foreground"
+              )}
             >
+              <PopoverTrigger asChild>
+                <Button type="button" variant="outline">
+                  <CalendarIcon className="h-4 w-4 opacity-70" />
+                  {Number.isFinite(valueMs) ? format(date, "PPP") : "Pick a date"}
+                </Button>
+              </PopoverTrigger>
+            </div>
+            <PopoverContent align="start" sideOffset={4}>
               <Calendar
                 mode="single"
                 selected={Number.isFinite(valueMs) ? date : undefined}
@@ -92,7 +88,7 @@ export function DueDateTimeFields({
 
         <div className="grid min-w-0 flex-1 grid-cols-2 gap-2">
           <div className="space-y-1.5">
-            <Label className="text-muted-foreground">Hour</Label>
+            <Label>Hour</Label>
             <Select
               value={String(hour)}
               onValueChange={(v) => {
@@ -101,12 +97,12 @@ export function DueDateTimeFields({
                 onChange(applyTime(valueMs, h, minute));
               }}
             >
-              <SelectTrigger className="h-9 font-mono tabular-nums">
+              <SelectTrigger>
                 <SelectValue />
               </SelectTrigger>
-              <SelectContent className="z-[100] max-h-56">
+              <SelectContent>
                 {HOUR_OPTIONS.map((h) => (
-                  <SelectItem key={h} value={String(h)} className="font-mono tabular-nums">
+                  <SelectItem key={h} value={String(h)}>
                     {pad2(h)}
                   </SelectItem>
                 ))}
@@ -114,7 +110,7 @@ export function DueDateTimeFields({
             </Select>
           </div>
           <div className="space-y-1.5">
-            <Label className="text-muted-foreground">Minute</Label>
+            <Label>Minute</Label>
             <Select
               value={String(minute)}
               onValueChange={(v) => {
@@ -123,12 +119,12 @@ export function DueDateTimeFields({
                 onChange(applyTime(valueMs, hour, m));
               }}
             >
-              <SelectTrigger className="h-9 font-mono tabular-nums">
+              <SelectTrigger>
                 <SelectValue />
               </SelectTrigger>
-              <SelectContent className="z-[100] max-h-56">
+              <SelectContent>
                 {MINUTE_OPTIONS.map((m) => (
-                  <SelectItem key={m} value={String(m)} className="font-mono tabular-nums">
+                  <SelectItem key={m} value={String(m)}>
                     {pad2(m)}
                   </SelectItem>
                 ))}
