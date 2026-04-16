@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useQuery } from "convex/react";
+import autoAnimate from "@formkit/auto-animate";
 import { ClipboardList, Plus } from "lucide-react";
 import { useLocation, useSearch } from "wouter";
 import { api } from "../convex/_generated/api";
@@ -67,6 +68,7 @@ export function TaskDashboard() {
   );
   const [showReminderSettings, setShowReminderSettings] = useState(false);
   usePushNotifications();
+  const animatedListsRef = useRef<WeakSet<HTMLElement>>(new WeakSet());
 
   const tagLabels = useQuery(api.tasks.distinctTags, {});
   const tasks = useQuery(
@@ -177,6 +179,11 @@ export function TaskDashboard() {
   const doneTodayCount =
     tasks?.filter((t) => !t.isArchived && isDoneToday(t.lastCompletedAt)).length ?? 0;
   const archivedCount = tasks?.filter((t) => t.isArchived).length ?? 0;
+  const attachListAnimation = (element: HTMLElement | null) => {
+    if (!element || animatedListsRef.current.has(element)) return;
+    autoAnimate(element, { duration: 240, easing: "ease-out" });
+    animatedListsRef.current.add(element);
+  };
 
   return (
     <div className="flex min-h-screen flex-col bg-muted/40">
@@ -314,7 +321,7 @@ export function TaskDashboard() {
             }}
           />
         ) : statusFilter === "archived" ? (
-          <div className="flex flex-col gap-2">
+          <div ref={attachListAnimation} className="flex flex-col gap-2">
             {displayedTasks.map((task) => (
               <TaskCard
                 key={task._id}
@@ -353,7 +360,7 @@ export function TaskDashboard() {
                     {DUE_GROUP_LABEL[group]}
                   </h3>
                 </div>
-                <div className="flex flex-col gap-2">
+                <div ref={attachListAnimation} className="flex flex-col gap-2">
                   {sectionTasks.map((task) => (
                     <TaskCard
                       key={task._id}
