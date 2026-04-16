@@ -52,14 +52,26 @@ function normalizeTags(input: string[] | undefined): string[] {
   return out;
 }
 
-function normalizeTaskPoints(points: number | undefined): number {
-  if (points === undefined) return MIN_TASK_POINTS;
+function validateOptionalTaskPoints(points: number | undefined): number | undefined {
+  if (points === undefined) return undefined;
   if (
     !Number.isInteger(points) ||
     points < MIN_TASK_POINTS ||
     points > MAX_TASK_POINTS
   ) {
     throw new Error("Points must be an integer between 1 and 5");
+  }
+  return points;
+}
+
+function sanitizeStoredTaskPoints(points: number | undefined): number | undefined {
+  if (points === undefined) return undefined;
+  if (
+    !Number.isInteger(points) ||
+    points < MIN_TASK_POINTS ||
+    points > MAX_TASK_POINTS
+  ) {
+    return undefined;
   }
   return points;
 }
@@ -210,7 +222,7 @@ async function enrichSingleTask(
 
   return {
     ...task,
-    points: normalizeTaskPoints(task.points),
+    points: sanitizeStoredTaskPoints(task.points),
     lastCompletedAt: lastCompletion?.completedAt ?? null,
     completionCount: completionRows.length,
     nextDueAt: computeNextDue(
@@ -370,7 +382,7 @@ export const create = mutation({
     }
 
     const tags = normalizeTags(args.tags);
-    const points = normalizeTaskPoints(args.points);
+    const points = validateOptionalTaskPoints(args.points);
     const recurrenceStartAt = args.recurrenceStartAt ?? undefined;
     const recurrenceEndAt = args.recurrenceEndAt ?? undefined;
     assertValidRecurringWindow(
@@ -383,7 +395,7 @@ export const create = mutation({
       return await ctx.db.insert("tasks", {
         title: args.title.trim(),
         description: args.description?.trim() || undefined,
-        points,
+        ...(points !== undefined ? { points } : {}),
         recurrenceType: "once",
         dueAt: args.dueAt,
         recurrenceStartAt: undefined,
@@ -407,7 +419,7 @@ export const create = mutation({
     return await ctx.db.insert("tasks", {
       title: args.title.trim(),
       description: args.description?.trim() || undefined,
-      points,
+      ...(points !== undefined ? { points } : {}),
       recurrenceType: args.recurrenceType,
       recurrenceStartAt,
       recurrenceEndAt,
@@ -472,7 +484,7 @@ export const update = mutation({
       finalPatch.recurrenceDayOfWeek = rest.recurrenceDayOfWeek;
     if (rest.recurrenceDaysOfWeek !== undefined)
       finalPatch.recurrenceDaysOfWeek = normalizeWeekdays(rest.recurrenceDaysOfWeek);
-    if (rest.points !== undefined) finalPatch.points = normalizeTaskPoints(rest.points);
+    if (rest.points !== undefined) finalPatch.points = validateOptionalTaskPoints(rest.points);
     if (rest.tags !== undefined) {
       finalPatch.tags = normalizeTags(rest.tags);
     }

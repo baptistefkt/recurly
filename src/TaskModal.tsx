@@ -90,7 +90,7 @@ export function TaskModal({
 
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
-  const [points, setPoints] = useState<number>(MIN_TASK_POINTS);
+  const [points, setPoints] = useState<number | undefined>(undefined);
   const [recurrenceType, setRecurrenceType] = useState<RecurrenceType>("weekly");
   const [recurrenceInterval, setRecurrenceInterval] = useState(1);
   const [recurrenceUnit, setRecurrenceUnit] = useState<RecurrenceUnit>("weeks");
@@ -99,6 +99,8 @@ export function TaskModal({
   const [recurrenceStartAtMs, setRecurrenceStartAtMs] = useState<number | null>(null);
   const [recurrenceEndAtMs, setRecurrenceEndAtMs] = useState<number | null>(null);
   const [scheduleWindowOpen, setScheduleWindowOpen] = useState(false);
+  const [tagsOpen, setTagsOpen] = useState(false);
+  const [pointsOpen, setPointsOpen] = useState(false);
   const [saving, setSaving] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [shareWithTeam, setShareWithTeam] = useState(false);
@@ -136,7 +138,7 @@ export function TaskModal({
     if (existingTask) {
       setTitle(existingTask.title);
       setDescription(existingTask.description ?? "");
-      setPoints(existingTask.points ?? MIN_TASK_POINTS);
+      setPoints(existingTask.points);
       setRecurrenceType(existingTask.recurrenceType as RecurrenceType);
       setRecurrenceInterval(existingTask.recurrenceInterval ?? 1);
       setRecurrenceUnit((existingTask.recurrenceUnit as RecurrenceUnit) ?? "weeks");
@@ -161,7 +163,7 @@ export function TaskModal({
       }
     } else {
       setShareWithTeam(listMode === "team" && !!activeTeamId);
-      setPoints(MIN_TASK_POINTS);
+      setPoints(undefined);
       setAssigneeUserIds([]);
       setRecurrenceDaysOfWeek([1]);
       setDueAtMs(defaultDueAtMs());
@@ -169,6 +171,8 @@ export function TaskModal({
       setRecurrenceEndAtMs(null);
     }
     setScheduleWindowOpen(false);
+    setTagsOpen(false);
+    setPointsOpen(false);
   }, [existingTask, listMode, activeTeamId]);
 
   const isEdit = !!taskId;
@@ -213,9 +217,10 @@ export function TaskModal({
         return;
       }
       if (
-        !Number.isInteger(points) ||
-        points < MIN_TASK_POINTS ||
-        points > MAX_TASK_POINTS
+        points !== undefined &&
+        (!Number.isInteger(points) ||
+          points < MIN_TASK_POINTS ||
+          points > MAX_TASK_POINTS)
       ) {
         toast.error("Points must be between 1 and 5");
         setSaving(false);
@@ -280,7 +285,7 @@ export function TaskModal({
           taskId,
           title: title.trim(),
           description: description.trim() || undefined,
-          points,
+          ...(points !== undefined ? { points } : {}),
           recurrenceType,
           ...recurrenceFields,
           visibility,
@@ -299,7 +304,7 @@ export function TaskModal({
         await createTask({
           title: title.trim(),
           description: description.trim() || undefined,
-          points,
+          ...(points !== undefined ? { points } : {}),
           recurrenceType,
           ...recurrenceFields,
           visibility,
@@ -341,7 +346,7 @@ export function TaskModal({
           </DialogHeader>
           <form onSubmit={handleSubmit} className="flex flex-col gap-4">
             <div className="space-y-2">
-              <Label htmlFor="task-title">Task name</Label>
+              <Label htmlFor="task-title">Title</Label>
               <Input
                 id="task-title"
                 autoFocus
@@ -354,7 +359,7 @@ export function TaskModal({
 
             <div className="space-y-2">
               <Label htmlFor="task-notes">
-                Notes <span className="text-muted-foreground font-normal">(optional)</span>
+                Description <span className="text-muted-foreground font-normal">(optional)</span>
               </Label>
               <Textarea
                 id="task-notes"
@@ -363,96 +368,6 @@ export function TaskModal({
                 placeholder="Any extra details..."
                 rows={2}
               />
-            </div>
-
-            <div className="space-y-2">
-              <Label>Points</Label>
-              <div className="grid grid-cols-5 gap-1">
-                {Array.from({ length: MAX_TASK_POINTS }, (_, index) => {
-                  const value = index + 1;
-                  return (
-                    <Button
-                      key={value}
-                      type="button"
-                      variant={points === value ? "default" : "outline"}
-                      size="sm"
-                      onClick={() => setPoints(value)}
-                    >
-                      {value}
-                    </Button>
-                  );
-                })}
-              </div>
-              <p className="text-xs text-muted-foreground">
-                Use 1 for small tasks and 5 for high-impact tasks.
-              </p>
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="task-tags">
-                Tags <span className="text-muted-foreground font-normal">(optional)</span>
-              </Label>
-              {tags.length > 0 && (
-                <div className="flex flex-wrap gap-1.5">
-                  {tags.map((tag) => (
-                    <Badge key={tag} variant="secondary">
-                      {tag}
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="icon-xs"
-                        onClick={() =>
-                          setTags((prev) =>
-                            prev.filter(
-                              (x) => x.toLowerCase() !== tag.toLowerCase()
-                            )
-                          )
-                        }
-                        aria-label={`Remove ${tag}`}
-                      >
-                        <X className="h-3 w-3" />
-                      </Button>
-                    </Badge>
-                  ))}
-                </div>
-              )}
-              <Input
-                id="task-tags"
-                value={tagDraft}
-                onChange={(e) => setTagDraft(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") {
-                    e.preventDefault();
-                    setTags((prev) => {
-                      const next = mergeTagIntoList(prev, tagDraft);
-                      return next;
-                    });
-                    setTagDraft("");
-                  }
-                }}
-                placeholder="Type a tag and press Enter"
-                disabled={tags.length >= MAX_TAG_COUNT}
-              />
-              {tagSuggestions.length > 0 && (
-                <div className="flex flex-wrap gap-1.5 pt-0.5">
-                  <span className="w-full text-[11px] text-muted-foreground">
-                    Suggestions
-                  </span>
-                  {tagSuggestions.map((t) => (
-                    <Button
-                      key={t}
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      onClick={() => {
-                        setTags((prev) => mergeTagIntoList(prev, t));
-                      }}
-                    >
-                      {t}
-                    </Button>
-                  ))}
-                </div>
-              )}
             </div>
 
             {showSharing && (
@@ -541,7 +456,7 @@ export function TaskModal({
               )}
               {recurrenceType === "weeklyDays" && (
                 <div className="mt-2 space-y-2">
-                  <span className="text-sm text-muted-foreground">On these days</span>
+                  <span className="text-sm text-muted-foreground mb-1 block">On these days</span>
                   <div className="flex flex-wrap gap-1.5">
                     {WEEKDAY_OPTIONS.map((day) => {
                       const active = recurrenceDaysOfWeek.includes(day.value);
@@ -588,66 +503,203 @@ export function TaskModal({
                   </div>
                 </div>
               )}
-              {recurrenceType !== "once" && (
-                <div className="mt-2 space-y-3">
-                  <div className="flex items-center justify-between gap-2">
-                    <p className="text-sm font-medium">Schedule window (optional)</p>
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="icon-sm"
-                      onClick={() => setScheduleWindowOpen((prev) => !prev)}
-                      aria-label={scheduleWindowOpen ? "Hide schedule window" : "Show schedule window"}
-                    >
-                      {scheduleWindowOpen ? (
-                        <ChevronUp className="h-4 w-4" />
-                      ) : (
-                        <ChevronDown className="h-4 w-4" />
+            </div>
+
+            {recurrenceType !== "once" && (
+              <div className="space-y-3">
+                <Button
+                  type="button"
+                  variant="link"
+                  className="h-auto w-full justify-between px-0"
+                  onClick={() => setScheduleWindowOpen((prev) => !prev)}
+                  aria-expanded={scheduleWindowOpen}
+                >
+                  <span className="text-sm font-medium">Schedule window <span className="text-muted-foreground font-normal">(optional)</span></span>
+                  <span>
+                    {scheduleWindowOpen ? (
+                      <ChevronUp className="h-4 w-4" />
+                    ) : (
+                      <ChevronDown className="h-4 w-4" />
+                    )}
+                  </span>
+                </Button>
+                {scheduleWindowOpen && (
+                  <>
+                    <div className="space-y-2">
+                      <label className="flex cursor-pointer items-center gap-2 text-sm">
+                        <Checkbox
+                          checked={recurrenceStartAtMs !== null}
+                          onCheckedChange={(checked) => {
+                            if (checked) {
+                              setRecurrenceStartAtMs((prev) => prev ?? defaultDueAtMs());
+                            } else {
+                              setRecurrenceStartAtMs(null);
+                            }
+                          }}
+                        />
+                        Start date
+                      </label>
+                      {recurrenceStartAtMs !== null && (
+                        <DueDateTimeFields valueMs={recurrenceStartAtMs} onChange={setRecurrenceStartAtMs} />
                       )}
-                    </Button>
-                  </div>
-                  {scheduleWindowOpen && (
-                    <>
-                      <div className="space-y-2">
-                        <label className="flex cursor-pointer items-center gap-2 text-sm">
-                          <Checkbox
-                            checked={recurrenceStartAtMs !== null}
-                            onCheckedChange={(checked) => {
-                              if (checked) {
-                                setRecurrenceStartAtMs((prev) => prev ?? defaultDueAtMs());
-                              } else {
-                                setRecurrenceStartAtMs(null);
-                              }
-                            }}
-                          />
-                          Start date
-                        </label>
-                        {recurrenceStartAtMs !== null && (
-                          <DueDateTimeFields valueMs={recurrenceStartAtMs} onChange={setRecurrenceStartAtMs} />
-                        )}
-                      </div>
-                      <div className="space-y-2">
-                        <label className="flex cursor-pointer items-center gap-2 text-sm">
-                          <Checkbox
-                            checked={recurrenceEndAtMs !== null}
-                            onCheckedChange={(checked) => {
-                              if (checked) {
-                                setRecurrenceEndAtMs(
-                                  (prev) => prev ?? recurrenceStartAtMs ?? defaultDueAtMs()
-                                );
-                              } else {
-                                setRecurrenceEndAtMs(null);
-                              }
-                            }}
-                          />
-                          End date
-                        </label>
-                        {recurrenceEndAtMs !== null && (
-                          <DueDateTimeFields valueMs={recurrenceEndAtMs} onChange={setRecurrenceEndAtMs} />
-                        )}
-                      </div>
-                    </>
+                    </div>
+                    <div className="space-y-2">
+                      <label className="flex cursor-pointer items-center gap-2 text-sm">
+                        <Checkbox
+                          checked={recurrenceEndAtMs !== null}
+                          onCheckedChange={(checked) => {
+                            if (checked) {
+                              setRecurrenceEndAtMs(
+                                (prev) => prev ?? recurrenceStartAtMs ?? defaultDueAtMs()
+                              );
+                            } else {
+                              setRecurrenceEndAtMs(null);
+                            }
+                          }}
+                        />
+                        End date
+                      </label>
+                      {recurrenceEndAtMs !== null && (
+                        <DueDateTimeFields valueMs={recurrenceEndAtMs} onChange={setRecurrenceEndAtMs} />
+                      )}
+                    </div>
+                  </>
+                )}
+              </div>
+            )}
+
+            <div className="space-y-3">
+              <Button
+                type="button"
+                variant="link"
+                className="h-auto w-full justify-between px-0"
+                onClick={() => setTagsOpen((prev) => !prev)}
+                aria-expanded={tagsOpen}
+              >
+                <span className="text-sm font-medium">Tags <span className="text-muted-foreground font-normal">(optional)</span></span>
+                <span>
+                  {tagsOpen ? (
+                    <ChevronUp className="h-4 w-4" />
+                  ) : (
+                    <ChevronDown className="h-4 w-4" />
                   )}
+                </span>
+              </Button>
+              {tagsOpen && (
+                <div className="space-y-2">
+                  {tags.length > 0 && (
+                    <div className="flex flex-wrap gap-1.5">
+                      {tags.map((tag) => (
+                        <Badge key={tag} variant="secondary">
+                          {tag}
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon-xs"
+                            onClick={() =>
+                              setTags((prev) =>
+                                prev.filter(
+                                  (x) => x.toLowerCase() !== tag.toLowerCase()
+                                )
+                              )
+                            }
+                            aria-label={`Remove ${tag}`}
+                          >
+                            <X className="h-3 w-3" />
+                          </Button>
+                        </Badge>
+                      ))}
+                    </div>
+                  )}
+                  <Input
+                    id="task-tags"
+                    value={tagDraft}
+                    onChange={(e) => setTagDraft(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") {
+                        e.preventDefault();
+                        setTags((prev) => {
+                          const next = mergeTagIntoList(prev, tagDraft);
+                          return next;
+                        });
+                        setTagDraft("");
+                      }
+                    }}
+                    placeholder="Type a tag and press Enter"
+                    disabled={tags.length >= MAX_TAG_COUNT}
+                  />
+                  {tagSuggestions.length > 0 && (
+                    <div className="flex flex-wrap gap-1.5 pt-0.5">
+                      <span className="w-full text-[11px] text-muted-foreground">
+                        Suggestions
+                      </span>
+                      {tagSuggestions.map((t) => (
+                        <Button
+                          key={t}
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={() => {
+                            setTags((prev) => mergeTagIntoList(prev, t));
+                          }}
+                        >
+                          {t}
+                        </Button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+
+            <div className="space-y-3">
+              <Button
+                type="button"
+                variant="link"
+                className="h-auto w-full justify-between px-0"
+                onClick={() => setPointsOpen((prev) => !prev)}
+                aria-expanded={pointsOpen}
+              >
+                <span className="text-sm font-medium">Points <span className="text-muted-foreground font-normal">(optional)</span></span>
+                <span>
+                  {pointsOpen ? (
+                    <ChevronUp className="h-4 w-4" />
+                  ) : (
+                    <ChevronDown className="h-4 w-4" />
+                  )}
+                </span>
+              </Button>
+              {pointsOpen && (
+                <div className="space-y-2">
+                  <div className="grid grid-cols-6 gap-1">
+                    {!isEdit && (
+                      <Button
+                        type="button"
+                        variant={points === undefined ? "default" : "outline"}
+                        size="sm"
+                        onClick={() => setPoints(undefined)}
+                      >
+                        None
+                      </Button>
+                    )}
+                    {Array.from({ length: MAX_TASK_POINTS }, (_, index) => {
+                      const value = index + 1;
+                      return (
+                        <Button
+                          key={value}
+                          type="button"
+                          variant={points === value ? "default" : "outline"}
+                          size="sm"
+                          onClick={() => setPoints(value)}
+                        >
+                          {value}
+                        </Button>
+                      );
+                    })}
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    Assign 1-5 only when you want to weight this task.
+                  </p>
                 </div>
               )}
             </div>
