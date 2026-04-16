@@ -49,7 +49,7 @@ export function parseDashboardUrlState(search: string): DashboardUrlState {
       ? { type: "all" }
       : scope === "team" && teamId
         ? { type: "team", teamId: teamId as Id<"teams"> }
-        : { type: "personal" };
+        : { type: "all" };
 
   const rawStatus = params.get("status");
   const statusFilter =

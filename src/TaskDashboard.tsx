@@ -168,6 +168,8 @@ export function TaskDashboard() {
       return aNext - bNext;
     });
   })();
+  const groupedDueSections = groupTasksByDueGroup(displayedTasks, now);
+  const showDueTimeline = groupedDueSections.length > 1;
 
   const activeTaskCount = tasks?.filter((t) => !t.isArchived).length ?? 0;
   const overdueCount =
@@ -200,7 +202,12 @@ export function TaskDashboard() {
             onNewTeam={() => setCreateTeamOpen(true)}
             onReminderSettings={() => setShowReminderSettings(true)}
             onOpenStats={() => {
-              navigate("/stats");
+              const dashboardQuery = search
+                ? search.startsWith("?")
+                  ? search
+                  : `?${search}`
+                : "";
+              navigate(`/stats${dashboardQuery}`);
             }}
           />
         </div>
@@ -322,10 +329,27 @@ export function TaskDashboard() {
           </div>
         ) : (
           <div className="flex flex-col gap-6">
-            {groupTasksByDueGroup(displayedTasks, now).map(({ group, tasks: sectionTasks }) => (
-              <section key={group} className="flex flex-col gap-2">
-                <div className="sticky top-14 z-10 -mx-4 border-b border-border/80 bg-muted/80 px-4 py-2 backdrop-blur-sm supports-backdrop-filter:bg-muted/70">
-                  <h3 className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+            {groupedDueSections.map(({ group, tasks: sectionTasks }, index) => (
+              <section
+                key={group}
+                className={cn("flex flex-col gap-2", showDueTimeline && "relative pl-6")}
+              >
+                {showDueTimeline && (
+                  <>
+                    <span
+                      aria-hidden="true"
+                      className="absolute left-[3.5px] top-[10px] z-20 h-3 w-3 rounded-full border-2 border-muted-foreground bg-muted"
+                    />
+                    {index < groupedDueSections.length - 1 && (
+                      <span
+                        aria-hidden="true"
+                        className="absolute left-[9px] top-[10px] -bottom-10 w-px bg-border"
+                      />
+                    )}
+                  </>
+                )}
+                <div className="sticky top-14 z-10 -mx-4 px-4 py-2">
+                  <h3 className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
                     {DUE_GROUP_LABEL[group]}
                   </h3>
                 </div>

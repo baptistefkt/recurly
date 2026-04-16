@@ -55,7 +55,7 @@ export function TeamBar({
         filter.type === "team" &&
         !memberships.some((m: { teamId: Id<"teams"> }) => m.teamId === filter.teamId)
       ) {
-        onFilterChange({ type: "personal" });
+        onFilterChange({ type: "all" });
       }
       return;
     }
@@ -74,7 +74,7 @@ export function TeamBar({
     } else if (scope === undefined && hasTeam) {
       onFilterChange({ type: "team", teamId: savedTeam });
     } else {
-      onFilterChange({ type: "personal" });
+      onFilterChange({ type: "all" });
     }
   }, [filter, hasInitialScopeOverride, memberships, onFilterChange, user]);
 
@@ -114,7 +114,7 @@ export function TeamBar({
     tabValue === "personal" ||
     (tabValue.startsWith("team:") &&
       membershipIds.has(tabValue.slice("team:".length) as Id<'teams'>));
-  const safeTabValue = tabValueValid ? tabValue : "personal";
+  const safeTabValue = tabValueValid ? tabValue : "all";
 
   return (
     <>

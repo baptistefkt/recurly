@@ -4,7 +4,7 @@ import {
   Bar,
   BarChart,
   CartesianGrid,
-  Cell,
+  Label,
   Line,
   LineChart,
   Pie,
@@ -13,7 +13,7 @@ import {
   YAxis,
 } from "recharts";
 import { ChevronLeft } from "lucide-react";
-import { useLocation } from "wouter";
+import { useLocation, useSearch } from "wouter";
 import { api } from "../convex/_generated/api";
 import { Id } from "../convex/_generated/dataModel";
 import { UserMenu } from "./UserMenu";
@@ -71,6 +71,7 @@ const trendChartConfig = {
 
 export function StatsPage() {
   const [, navigate] = useLocation();
+  const search = useSearch();
   const memberships = useQuery(api.teams.myMemberships, {});
   const user = useQuery(api.auth.loggedInUser);
   const [range, setRange] = useState<RangeValue>("30d");
@@ -108,27 +109,31 @@ export function StatsPage() {
     if (!stats?.team) return [];
     return stats.team.members
       .filter((member) => member.outputSharePercent > 0)
-      .map((member) => ({
+      .map((member, index) => ({
         name: member.name || member.email || "Member",
         outputSharePercent: Number(member.outputSharePercent.toFixed(2)),
+        fill: `var(--chart-${(index % 5) + 1})`,
       }));
   }, [stats]);
-
-  const tagChartData = stats?.team?.tagBreakdown ?? [];
-
-  const recurrenceData = stats?.team
-    ? [
-        { name: "One-time", value: stats.team.recurrenceBreakdown.oncePoints },
-        { name: "Recurring", value: stats.team.recurrenceBreakdown.recurringPoints },
-      ]
-    : [];
 
   return (
     <div className="flex min-h-screen flex-col bg-muted/40">
       <header className="sticky top-0 z-20 border-b bg-background">
         <div className="mx-auto flex h-14 max-w-4xl items-center justify-between px-4">
           <div className="flex items-center gap-2">
-            <Button type="button" variant="ghost" size="sm" onClick={() => navigate("/")}>
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={() => {
+                const dashboardQuery = search
+                  ? search.startsWith("?")
+                    ? search
+                    : `?${search}`
+                  : "";
+                navigate(`/${dashboardQuery}`);
+              }}
+            >
               <ChevronLeft className="h-4 w-4" />
               Tasks
             </Button>
@@ -225,13 +230,26 @@ export function StatsPage() {
                       <CartesianGrid vertical={false} />
                       <XAxis dataKey="bucket" tickLine={false} axisLine={false} />
                       <YAxis allowDecimals={false} tickLine={false} axisLine={false} width={32} />
-                      <ChartTooltip content={<ChartTooltipContent />} />
+                      <ChartTooltip
+                        content={({ content: _content, ...props }) => (
+                          <ChartTooltipContent {...props} />
+                        )}
+                      />
                       <Line
                         dataKey="completedPoints"
                         type="monotone"
                         stroke="var(--color-completedPoints)"
                         strokeWidth={2}
-                        dot={false}
+                        dot={
+                          stats.personal.trend.length === 1
+                            ? {
+                                r: 4,
+                                fill: "var(--color-completedPoints)",
+                                stroke: "var(--background)",
+                                strokeWidth: 1,
+                              }
+                            : false
+                        }
                       />
                     </LineChart>
                   </ChartContainer>
@@ -271,7 +289,11 @@ export function StatsPage() {
                             <CartesianGrid horizontal={false} />
                             <XAxis type="number" allowDecimals={false} />
                             <YAxis type="category" dataKey="name" width={96} />
-                            <ChartTooltip content={<ChartTooltipContent />} />
+                            <ChartTooltip
+                              content={({ content: _content, ...props }) => (
+                                <ChartTooltipContent {...props} />
+                              )}
+                            />
                             <Bar
                               dataKey="completedPoints"
                               fill="var(--color-completedPoints)"
@@ -300,18 +322,74 @@ export function StatsPage() {
                               innerRadius={52}
                               outerRadius={92}
                             >
-                              {outputShareData.map((_, index) => (
-                                <Cell
-                                  key={`share-${index}`}
-                                  fill={`var(--chart-${(index % 5) + 1})`}
-                                />
-                              ))}
+                              <Label
+                                content={({ viewBox }) => {
+                                  if (!viewBox || !("cx" in viewBox) || !("cy" in viewBox)) {
+                                    return null;
+                                  }
+                                  return (
+                                    <text
+                                      x={viewBox.cx}
+                                      y={viewBox.cy}
+                                      textAnchor="middle"
+                                      dominantBaseline="middle"
+                                    >
+                                      <tspan
+                                        x={viewBox.cx}
+                                        y={(viewBox.cy ?? 0) - 12}
+                                        dy="0"
+                                        className="fill-foreground text-2xl font-semibold"
+                                      >
+                                        {stats.team.totalCompletedPoints.toFixed(0)}
+                                      </tspan>
+                                      <tspan
+                                        x={viewBox.cx}
+                                        dy="1.2em"
+                                        className="fill-muted-foreground text-[11px]"
+                                      >
+                                        team points
+                                      </tspan>
+                                    </text>
+                                  );
+                                }}
+                              />
                             </Pie>
-                            <ChartTooltip content={<ChartTooltipContent hideLabel />} />
+                            <ChartTooltip
+                              content={({ content: _content, ...props }) => (
+                                <ChartTooltipContent {...props} hideLabel />
+                              )}
+                            />
                             <ChartLegend content={<ChartLegendContent />} />
                           </PieChart>
                         </ChartContainer>
                       )}
+
+                      <div className="mt-6 overflow-x-auto border-t pt-4">
+                        <table className="w-full text-sm">
+                          <thead>
+                            <tr className="border-b text-left text-muted-foreground">
+                              <th className="py-2 pr-4 font-medium">Member</th>
+                              <th className="py-2 pr-4 font-medium">Completed points</th>
+                              <th className="py-2 pr-4 font-medium">Completions</th>
+                              <th className="py-2 pr-4 font-medium">Open assigned points</th>
+                              <th className="py-2 pr-0 font-medium">Output share</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {stats.team.members.map((member) => (
+                              <tr key={member.userId} className="border-b last:border-b-0">
+                                <td className="py-2 pr-4">
+                                  {member.name || member.email || "Member"}
+                                </td>
+                                <td className="py-2 pr-4">{member.completedPoints.toFixed(0)}</td>
+                                <td className="py-2 pr-4">{member.completionCount}</td>
+                                <td className="py-2 pr-4">{member.openAssignedPoints.toFixed(0)}</td>
+                                <td className="py-2 pr-0">{member.outputSharePercent.toFixed(1)}%</td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
                     </CardContent>
                   </Card>
                 </div>
@@ -329,7 +407,11 @@ export function StatsPage() {
                           <CartesianGrid vertical={false} />
                           <XAxis dataKey="name" tickLine={false} axisLine={false} />
                           <YAxis allowDecimals={false} tickLine={false} axisLine={false} width={32} />
-                          <ChartTooltip content={<ChartTooltipContent />} />
+                          <ChartTooltip
+                            content={({ content: _content, ...props }) => (
+                              <ChartTooltipContent {...props} />
+                            )}
+                          />
                           <ChartLegend content={<ChartLegendContent />} />
                           <Bar
                             dataKey="completedPoints"
@@ -347,89 +429,6 @@ export function StatsPage() {
                   </CardContent>
                 </Card>
 
-                <div className="grid gap-4 lg:grid-cols-2">
-                  <Card>
-                    <CardHeader>
-                      <CardTitle className="text-base">Top tags by points</CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                      {tagChartData.length === 0 ? (
-                        <p className="text-sm text-muted-foreground">No tag data in this period.</p>
-                      ) : (
-                        <ChartContainer config={memberChartConfig} className="aspect-auto h-[260px] w-full">
-                          <BarChart data={tagChartData} layout="vertical" accessibilityLayer>
-                            <CartesianGrid horizontal={false} />
-                            <XAxis type="number" allowDecimals={false} />
-                            <YAxis type="category" dataKey="tag" width={96} />
-                            <ChartTooltip content={<ChartTooltipContent />} />
-                            <Bar
-                              dataKey="completedPoints"
-                              fill="var(--color-completedPoints)"
-                              radius={4}
-                            />
-                          </BarChart>
-                        </ChartContainer>
-                      )}
-                    </CardContent>
-                  </Card>
-
-                  <Card>
-                    <CardHeader>
-                      <CardTitle className="text-base">One-time vs recurring points</CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                      {recurrenceData.every((entry) => entry.value === 0) ? (
-                        <p className="text-sm text-muted-foreground">No recurrence data in this period.</p>
-                      ) : (
-                        <ChartContainer config={shareChartConfig} className="aspect-auto h-[260px] w-full">
-                          <PieChart accessibilityLayer>
-                            <Pie data={recurrenceData} dataKey="value" nameKey="name" innerRadius={42}>
-                              {recurrenceData.map((_, index) => (
-                                <Cell key={`recur-${index}`} fill={`var(--chart-${(index % 5) + 1})`} />
-                              ))}
-                            </Pie>
-                            <ChartTooltip content={<ChartTooltipContent hideLabel />} />
-                            <ChartLegend content={<ChartLegendContent />} />
-                          </PieChart>
-                        </ChartContainer>
-                      )}
-                    </CardContent>
-                  </Card>
-                </div>
-
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="text-base">Member details</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="overflow-x-auto">
-                      <table className="w-full text-sm">
-                        <thead>
-                          <tr className="border-b text-left text-muted-foreground">
-                            <th className="py-2 pr-4 font-medium">Member</th>
-                            <th className="py-2 pr-4 font-medium">Completed points</th>
-                            <th className="py-2 pr-4 font-medium">Completions</th>
-                            <th className="py-2 pr-4 font-medium">Open assigned points</th>
-                            <th className="py-2 pr-0 font-medium">Output share</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {stats.team.members.map((member) => (
-                            <tr key={member.userId} className="border-b last:border-b-0">
-                              <td className="py-2 pr-4">
-                                {member.name || member.email || "Member"}
-                              </td>
-                              <td className="py-2 pr-4">{member.completedPoints.toFixed(0)}</td>
-                              <td className="py-2 pr-4">{member.completionCount}</td>
-                              <td className="py-2 pr-4">{member.openAssignedPoints.toFixed(0)}</td>
-                              <td className="py-2 pr-0">{member.outputSharePercent.toFixed(1)}%</td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
-                  </CardContent>
-                </Card>
               </>
             ) : (
               <Card>

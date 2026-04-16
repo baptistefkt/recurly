@@ -1,6 +1,7 @@
 import { Authenticated, Unauthenticated } from "convex/react";
-import { useState } from "react";
-import { Route, Switch } from "wouter";
+import { useEffect, useRef, useState } from "react";
+import { useConvexAuth } from "convex/react";
+import { Route, Switch, useLocation } from "wouter";
 import { PasswordResetForm } from "./PasswordResetForm";
 import { SignInForm } from "./SignInForm";
 import { StatsPage } from "./StatsPage";
@@ -15,6 +16,20 @@ import {
 } from "@/components/ui/card";
 
 export default function App() {
+  const { isAuthenticated, isLoading } = useConvexAuth();
+  const [, navigate] = useLocation();
+  const wasAuthenticatedRef = useRef<boolean | null>(null);
+
+  useEffect(() => {
+    if (isLoading) return;
+
+    if (wasAuthenticatedRef.current === false && isAuthenticated) {
+      navigate("/");
+    }
+
+    wasAuthenticatedRef.current = isAuthenticated;
+  }, [isAuthenticated, isLoading, navigate]);
+
   return (
     <div className="min-h-screen flex flex-col bg-muted/40">
       <Toaster position="top-center" />

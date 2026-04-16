@@ -67,6 +67,7 @@ export const overview = query({
 
     const now = Date.now();
     const rangeStartAt = getRangeStartAt(args.range, now);
+    const selectedTeamId = args.teamId ?? null;
 
     const taskCache = new Map<Id<"tasks">, Doc<"tasks"> | null>();
     const getTask = async (taskId: Id<"tasks">) => {
@@ -91,6 +92,7 @@ export const overview = query({
       if (completion.completedAt < rangeStartAt || completion.completedAt > now) continue;
       const task = await getTask(completion.taskId);
       if (!task) continue;
+      if (selectedTeamId !== null && task.teamId !== selectedTeamId) continue;
       const points = pointsForTask(task);
       personalCompletedPoints += points;
       personalCompletionCount += 1;
@@ -121,7 +123,7 @@ export const overview = query({
         .sort((a, b) => a.bucket.localeCompare(b.bucket)),
     };
 
-    if (!args.teamId) {
+    if (!selectedTeamId) {
       return {
         range: args.range,
         rangeStartAt,
@@ -131,7 +133,6 @@ export const overview = query({
       };
     }
 
-    const selectedTeamId = args.teamId;
     await assertTeamMember(ctx, selectedTeamId, userId);
     const team = await ctx.db.get(selectedTeamId);
 

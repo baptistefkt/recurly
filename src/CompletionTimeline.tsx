@@ -38,13 +38,13 @@ export function CompletionTimeline({
         <p className="py-4 text-center text-sm text-muted-foreground">No completions yet</p>
       ) : (
         <div className="relative">
-          <div className="absolute bottom-0 left-3 top-0 w-px bg-border" />
+          <div className="absolute bottom-1.5 left-[11px] top-1.5 w-px bg-border" />
           <div className="flex flex-col gap-3">
             {completions.map((c, i) => (
               <div key={c._id} className="flex items-start gap-3 pl-0">
                 <div
                   className={cn(
-                    "z-10 flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full",
+                    "z-10 mt-[6px] flex h-6 w-6 shrink-0 items-center justify-center rounded-full",
                     i === 0 ? "bg-primary" : "bg-muted"
                   )}
                 >
