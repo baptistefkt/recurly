@@ -40,6 +40,50 @@ function trendBucketKey(completedAt: number, range: RangeValue): string {
   return d.toISOString().slice(0, 10);
 }
 
+function startOfUtcDay(ts: number): number {
+  const d = new Date(ts);
+  d.setUTCHours(0, 0, 0, 0);
+  return d.getTime();
+}
+
+function buildTrendBuckets(
+  range: RangeValue,
+  rangeStartAt: number,
+  now: number,
+  observedBuckets: string[]
+): string[] {
+  if (range === "all") {
+    if (observedBuckets.length === 0) return [];
+    const sortedObserved = [...observedBuckets].sort();
+    const [startYearRaw, startMonthRaw] = sortedObserved[0].split("-");
+    const startYear = Number(startYearRaw);
+    const startMonth = Number(startMonthRaw);
+    if (!Number.isFinite(startYear) || !Number.isFinite(startMonth)) return sortedObserved;
+
+    const start = Date.UTC(startYear, startMonth - 1, 1);
+    const endDate = new Date(now);
+    const end = Date.UTC(endDate.getUTCFullYear(), endDate.getUTCMonth(), 1);
+    const buckets: string[] = [];
+
+    for (let cursor = start; cursor <= end; ) {
+      const d = new Date(cursor);
+      buckets.push(`${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, "0")}`);
+      cursor = Date.UTC(d.getUTCFullYear(), d.getUTCMonth() + 1, 1);
+    }
+    return buckets;
+  }
+
+  const start = startOfUtcDay(rangeStartAt);
+  const end = startOfUtcDay(now);
+  const buckets: string[] = [];
+
+  for (let cursor = start; cursor <= end; cursor += 24 * 60 * 60 * 1000) {
+    buckets.push(new Date(cursor).toISOString().slice(0, 10));
+  }
+
+  return buckets;
+}
+
 export const overview = query({
   args: {
     range: rangeValidator,
@@ -118,9 +162,12 @@ export const overview = query({
         onTimeEligibleCount > 0 ? onTimeCount / onTimeEligibleCount : (null as number | null),
       onTimeEligibleCount,
       onTimeCount,
-      trend: [...trendByBucket.entries()]
-        .map(([bucket, value]) => ({ bucket, ...value }))
-        .sort((a, b) => a.bucket.localeCompare(b.bucket)),
+      trend: buildTrendBuckets(args.range, rangeStartAt, now, [...trendByBucket.keys()]).map(
+        (bucket) => {
+          const value = trendByBucket.get(bucket) ?? { completedPoints: 0, completionCount: 0 };
+          return { bucket, ...value };
+        }
+      ),
     };
 
     if (!selectedTeamId) {

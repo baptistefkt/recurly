@@ -69,6 +69,18 @@ const trendChartConfig = {
   },
 } satisfies ChartConfig;
 
+function truncateLabel(value: string, maxLength: number): string {
+  if (value.length <= maxLength) return value;
+  return `${value.slice(0, maxLength - 1)}…`;
+}
+
+function memberLabelMaxLength(memberCount: number): number {
+  if (memberCount <= 4) return 28;
+  if (memberCount <= 6) return 20;
+  if (memberCount <= 8) return 16;
+  return 12;
+}
+
 export function StatsPage() {
   const [, navigate] = useLocation();
   const search = useSearch();
@@ -115,6 +127,7 @@ export function StatsPage() {
         fill: `var(--chart-${(index % 5) + 1})`,
       }));
   }, [stats]);
+  const memberLabelLimit = memberLabelMaxLength(teamChartData.length);
 
   return (
     <div className="flex min-h-screen flex-col bg-muted/40">
@@ -285,10 +298,20 @@ export function StatsPage() {
                         <p className="text-sm text-muted-foreground">No team completions in range.</p>
                       ) : (
                         <ChartContainer config={memberChartConfig} className="aspect-auto h-[280px] w-full">
-                          <BarChart data={teamChartData} layout="vertical" accessibilityLayer>
-                            <CartesianGrid horizontal={false} />
-                            <XAxis type="number" allowDecimals={false} />
-                            <YAxis type="category" dataKey="name" width={96} />
+                          <BarChart data={teamChartData} accessibilityLayer>
+                            <CartesianGrid vertical={false} />
+                            <XAxis
+                              dataKey="name"
+                              tickLine={false}
+                              axisLine={false}
+                              interval="preserveStartEnd"
+                              angle={0}
+                              textAnchor="middle"
+                              height={40}
+                              minTickGap={14}
+                              tickFormatter={(value: string) => truncateLabel(value, memberLabelLimit)}
+                            />
+                            <YAxis allowDecimals={false} tickLine={false} axisLine={false} width={32} />
                             <ChartTooltip
                               content={({ content: _content, ...props }) => (
                                 <ChartTooltipContent {...props} />
@@ -344,7 +367,7 @@ export function StatsPage() {
                                       </tspan>
                                       <tspan
                                         x={viewBox.cx}
-                                        dy="1.2em"
+                                        dy="1.7em"
                                         className="fill-muted-foreground text-[11px]"
                                       >
                                         team points
