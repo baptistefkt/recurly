@@ -74,7 +74,8 @@ export const listTokensByUserId = internalQuery({
       .query("pushTokens")
       .withIndex("by_userId", (q) => q.eq("userId", args.userId))
       .collect();
-    return rows.map((row) => row.token);
+    // One FCM token per row; dedupe so legacy duplicate rows cannot multiply notifications.
+    return [...new Set(rows.map((row) => row.token))];
   },
 });
 

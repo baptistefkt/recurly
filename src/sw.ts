@@ -72,29 +72,8 @@ function notificationTargetPath(data: Record<string, unknown>): string {
   return "/";
 }
 
-self.addEventListener("push", (event) => {
-  if (!event.data) return;
-
-  let data: Record<string, unknown> = {};
-  try {
-    data = event.data.json() as Record<string, unknown>;
-  } catch {
-    data = { title: "Recurly", body: event.data.text() };
-  }
-
-  const notification = (data.notification ?? {}) as Record<string, unknown>;
-  const title = String(data.title ?? notification.title ?? "Recurly");
-  const body = String(data.body ?? notification.body ?? "You have a new notification");
-
-  event.waitUntil(
-    self.registration.showNotification(title, {
-      body,
-      icon: "/icon-192.png",
-      badge: "/icon-192.png",
-      data,
-    })
-  );
-});
+// Do not add a separate `push` listener that calls `showNotification`: FCM already delivers
+// the same message to `onBackgroundMessage` above, and a second handler would duplicate OS notifications.
 
 self.addEventListener("notificationclick", (event) => {
   event.notification.close();
