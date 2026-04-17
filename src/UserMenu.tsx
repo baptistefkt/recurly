@@ -1,7 +1,8 @@
 import { useAuthActions } from "@convex-dev/auth/react";
 import { BarChart3, Bell, LogOut, Plus, Users } from "lucide-react";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Avatar, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
+import { ColoredAvatarFallback } from "@/components/ColoredAvatarFallback";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -14,6 +15,7 @@ import { getUserInitials } from "@/lib/userDisplay";
 import { cn } from "@/lib/utils";
 
 type UserFields = {
+  _id?: string | null;
   name?: string | null;
   email?: string | null;
   image?: string | null;
@@ -37,6 +39,7 @@ export function UserMenu({
   const { signOut } = useAuthActions();
   const initials = getUserInitials(user?.name, user?.email);
   const display = user?.name?.trim() || user?.email || "Account";
+  const avatarSeed = user?._id || user?.email || display;
 
   return (
     <DropdownMenu>
@@ -45,7 +48,9 @@ export function UserMenu({
           <Button variant="ghost" size="icon" aria-label="Open account menu">
             <Avatar size="lg">
               {user?.image ? <AvatarImage src={user.image} alt="" /> : null}
-              <AvatarFallback>{initials}</AvatarFallback>
+              <ColoredAvatarFallback seed={avatarSeed}>
+                {initials}
+              </ColoredAvatarFallback>
             </Avatar>
           </Button>
         </DropdownMenuTrigger>

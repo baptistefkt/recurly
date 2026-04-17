@@ -27,6 +27,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { ChevronDown, ChevronUp, X } from "lucide-react";
+import { tagColorClass } from "@/lib/tagColors";
 
 const MAX_TAG_LEN = 40;
 const MAX_TAG_COUNT = 20;
@@ -590,7 +591,7 @@ export function TaskModal({
                   {tags.length > 0 && (
                     <div className="flex flex-wrap gap-1.5">
                       {tags.map((tag) => (
-                        <Badge key={tag} variant="secondary">
+                        <Badge key={tag} variant="secondary" className={tagColorClass(tag)}>
                           {tag}
                           <Button
                             type="button"
@@ -639,6 +640,7 @@ export function TaskModal({
                           type="button"
                           variant="outline"
                           size="sm"
+                          className={tagColorClass(t)}
                           onClick={() => {
                             setTags((prev) => mergeTagIntoList(prev, t));
                           }}

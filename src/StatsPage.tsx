@@ -131,7 +131,7 @@ export function StatsPage() {
 
   return (
     <div className="flex min-h-screen flex-col bg-muted/40">
-      <header className="sticky top-0 z-20 border-b bg-background">
+      <header className="sticky top-0 z-30 border-b bg-background">
         <div className="mx-auto flex h-14 max-w-4xl items-center justify-between px-4">
           <div className="flex items-center gap-2">
             <Button

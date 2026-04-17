@@ -18,6 +18,7 @@ import {
   type TaskListFilter,
 } from "./taskListFilter";
 import { Button } from "@/components/ui/button";
+import { tagColorClass } from "@/lib/tagColors";
 import { cn } from "@/lib/utils";
 import { usePushNotifications } from "@/hooks/usePushNotifications";
 import { ReminderSettingsModal } from "./ReminderSettingsModal";
@@ -187,7 +188,7 @@ export function TaskDashboard() {
 
   return (
     <div className="flex min-h-screen flex-col bg-muted/40">
-      <header className="sticky top-0 z-20 border-b bg-background">
+      <header className="sticky top-0 z-30 border-b bg-background">
         <div className="mx-auto flex h-14 max-w-2xl items-center justify-between px-4">
           <div className="flex items-center gap-2">
             <img
@@ -265,7 +266,7 @@ export function TaskDashboard() {
         <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
           {tagLabels !== undefined && tagLabels.length > 0 ? (
             <div className="min-w-0">
-              <div className="-mx-1 flex items-center gap-1 overflow-x-auto pb-1">
+              <div className="flex items-center gap-1 overflow-x-auto overflow-y-visible px-1 py-1">
                 <span className="shrink-0 px-1 text-xs font-medium text-muted-foreground">
                   Filter by tags:
                 </span>
@@ -278,17 +279,23 @@ export function TaskDashboard() {
                   All
                 </Button>
                 {tagLabels.map((label) => (
-                  <Button
+                  <button
                     key={label}
                     type="button"
-                    variant={selectedTag === label ? "default" : "outline"}
-                    size="xs"
+                    className={cn(
+                      "inline-flex h-6 shrink-0 cursor-pointer items-center justify-center rounded-3xl border px-2.5 text-xs font-medium transition-opacity focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40",
+                      tagColorClass(label),
+                      selectedTag === label
+                        ? "ring-1 ring-current"
+                        : "opacity-85 hover:opacity-100"
+                    )}
+                    aria-pressed={selectedTag === label}
                     onClick={() =>
                       setSelectedTag((prev) => (prev === label ? null : label))
                     }
                   >
                     {label}
-                  </Button>
+                  </button>
                 ))}
               </div>
             </div>
@@ -355,7 +362,7 @@ export function TaskDashboard() {
                     )}
                   </>
                 )}
-                <div className="sticky top-14 z-10 -mx-4 px-4 py-2">
+                <div className="-mx-4 px-4 py-2">
                   <h3 className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
                     {DUE_GROUP_LABEL[group]}
                   </h3>

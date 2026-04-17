@@ -22,11 +22,13 @@ import { AssigneeAvatarGroup } from "./AssigneeAvatarGroup";
 import { CompletionTimeline } from "./CompletionTimeline";
 import { TaskDueCountdown } from "./TaskDueCountdown";
 import { formatDistanceToNow } from "./dateUtils";
+import { ColoredAvatarFallback } from "@/components/ColoredAvatarFallback";
 import { getUserInitials } from "@/lib/userDisplay";
 import { humanizeRecurrence } from "./recurrenceFormat";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Avatar, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { tagColorClass } from "@/lib/tagColors";
 import {
   Dialog,
   DialogContent,
@@ -222,9 +224,9 @@ export function TaskDetailModal({
                             {task.createdBy.image ? (
                               <AvatarImage src={task.createdBy.image} alt="" />
                             ) : null}
-                            <AvatarFallback>
+                            <ColoredAvatarFallback seed={task.createdBy.userId}>
                               {getUserInitials(task.createdBy.name, task.createdBy.email)}
-                            </AvatarFallback>
+                            </ColoredAvatarFallback>
                           </Avatar>
                           <span>
                             {task.createdBy.name?.trim() ||
@@ -297,7 +299,11 @@ export function TaskDetailModal({
                       {task.tags && task.tags.length > 0 ? (
                         <div className="flex flex-wrap gap-2">
                           {task.tags.map((tag, i) => (
-                            <Badge key={`${tag}-${i}`} variant="outline">
+                            <Badge
+                              key={`${tag}-${i}`}
+                              variant="outline"
+                              className={tagColorClass(tag)}
+                            >
                               {tag}
                             </Badge>
                           ))}

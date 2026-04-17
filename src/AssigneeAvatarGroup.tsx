@@ -1,6 +1,7 @@
 import type { Id } from "../convex/_generated/dataModel";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { AvatarGroup, AvatarGroupItem } from "@/components/ui/avatar-group";
+import { ColoredAvatarFallback } from "@/components/ColoredAvatarFallback";
 import { getUserInitials } from "@/lib/userDisplay";
 import { cn } from "@/lib/utils";
 
@@ -34,7 +35,9 @@ export function AssigneeAvatarGroup({
             <AvatarGroupItem key={a.userId}>
               <Avatar size="sm" title={label}>
                 {a.image ? <AvatarImage src={a.image} alt="" /> : null}
-                <AvatarFallback>{getUserInitials(a.name, a.email)}</AvatarFallback>
+                <ColoredAvatarFallback seed={a.userId}>
+                  {getUserInitials(a.name, a.email)}
+                </ColoredAvatarFallback>
               </Avatar>
             </AvatarGroupItem>
           );
