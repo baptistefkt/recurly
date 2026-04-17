@@ -50,6 +50,28 @@ if (hasFirebaseConfig) {
   });
 }
 
+function asNonEmptyString(value: unknown): string | null {
+  if (typeof value !== "string") return null;
+  const trimmed = value.trim();
+  return trimmed.length > 0 ? trimmed : null;
+}
+
+function notificationTargetPath(data: Record<string, unknown>): string {
+  const taskId = asNonEmptyString(data.taskId);
+  if (taskId) {
+    const params = new URLSearchParams({ task: taskId });
+    return `/?${params.toString()}`;
+  }
+
+  const teamId = asNonEmptyString(data.teamId);
+  if (teamId) {
+    const params = new URLSearchParams({ scope: "team", teamId });
+    return `/?${params.toString()}`;
+  }
+
+  return "/";
+}
+
 self.addEventListener("push", (event) => {
   if (!event.data) return;
 
@@ -76,5 +98,26 @@ self.addEventListener("push", (event) => {
 
 self.addEventListener("notificationclick", (event) => {
   event.notification.close();
-  event.waitUntil(self.clients.openWindow("/"));
+  event.waitUntil(
+    (async () => {
+      const raw = event.notification.data;
+      const data =
+        raw && typeof raw === "object" ? (raw as Record<string, unknown>) : {};
+      const targetUrl = new URL(notificationTargetPath(data), self.location.origin).href;
+
+      const clients = await self.clients.matchAll({
+        type: "window",
+        includeUncontrolled: true,
+      });
+      const reusableClient = clients.find((client) => "focus" in client);
+      if (reusableClient) {
+        const windowClient = reusableClient as WindowClient;
+        await windowClient.navigate(targetUrl);
+        await windowClient.focus();
+        return;
+      }
+
+      await self.clients.openWindow(targetUrl);
+    })()
+  );
 });

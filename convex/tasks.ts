@@ -2,6 +2,7 @@ import { v } from "convex/values";
 import { mutation, query, type QueryCtx } from "./_generated/server";
 import { getAuthUserId } from "@convex-dev/auth/server";
 import type { Doc, Id } from "./_generated/dataModel";
+import { internal } from "./_generated/api";
 import {
   assertCanAccessTask,
   assertTeamMember,
@@ -74,6 +75,12 @@ function sanitizeStoredTaskPoints(points: number | undefined): number | undefine
     return undefined;
   }
   return points;
+}
+
+function userDisplayName(user: Doc<"users"> | null): string {
+  if (user?.name?.trim()) return user.name.trim();
+  if (user?.email) return user.email;
+  return "Someone";
 }
 
 function selectByVisibility(
@@ -390,9 +397,33 @@ export const create = mutation({
       recurrenceStartAt,
       recurrenceEndAt
     );
+    const actor = userDisplayName(await ctx.db.get(userId));
+    const teamForName =
+      args.visibility === "team" && args.teamId ? await ctx.db.get(args.teamId) : null;
+    const assignmentBody = (taskTitle: string) =>
+      teamForName?.name
+        ? `${actor} assigned "${taskTitle}" to you in ${teamForName.name}.`
+        : `${actor} assigned "${taskTitle}" to you.`;
+    const notifyAssignees = async (taskId: Id<"tasks">, title: string) => {
+      if (args.visibility !== "team") return;
+      const assignees = args.assigneeUserIds ?? [];
+      for (const assigneeUserId of assignees) {
+        if (assigneeUserId === userId) continue;
+        await ctx.scheduler.runAfter(0, internal.pushNotifications.sendPushNotification, {
+          userId: assigneeUserId,
+          title: "New task assignment",
+          body: assignmentBody(title),
+          data: {
+            eventType: "task_assigned",
+            taskId,
+          },
+        });
+      }
+    };
+
     if (args.recurrenceType === "once") {
       assertFiniteDueAtForOnce(args.dueAt);
-      return await ctx.db.insert("tasks", {
+      const taskId = await ctx.db.insert("tasks", {
         title: args.title.trim(),
         description: args.description?.trim() || undefined,
         ...(points !== undefined ? { points } : {}),
@@ -407,6 +438,8 @@ export const create = mutation({
         assigneeUserIds: args.assigneeUserIds,
         ...(tags.length > 0 ? { tags } : {}),
       });
+      await notifyAssignees(taskId, args.title.trim());
+      return taskId;
     }
 
     const recurrenceDaysOfWeek =
@@ -416,7 +449,7 @@ export const create = mutation({
     if (args.recurrenceType === "weeklyDays" && recurrenceDaysOfWeek.length === 0) {
       throw new Error("Pick at least one weekday");
     }
-    return await ctx.db.insert("tasks", {
+    const taskId = await ctx.db.insert("tasks", {
       title: args.title.trim(),
       description: args.description?.trim() || undefined,
       ...(points !== undefined ? { points } : {}),
@@ -435,6 +468,8 @@ export const create = mutation({
       assigneeUserIds: args.assigneeUserIds,
       ...(tags.length > 0 ? { tags } : {}),
     });
+    await notifyAssignees(taskId, args.title.trim());
+    return taskId;
   },
 });
 
@@ -563,7 +598,41 @@ export const update = mutation({
     }
 
     if (Object.keys(finalPatch).length === 0) return;
+
+    const nextVisibility = finalPatch.visibility ?? effectiveVisibility(task);
+    const nextTeamId =
+      finalPatch.teamId !== undefined ? finalPatch.teamId : task.teamId;
+    const nextAssignees =
+      finalPatch.assigneeUserIds !== undefined
+        ? finalPatch.assigneeUserIds ?? []
+        : task.assigneeUserIds ?? [];
+    const previousAssignees =
+      effectiveVisibility(task) === "team" ? task.assigneeUserIds ?? [] : [];
+    const previousSet = new Set(previousAssignees);
+    const newlyAssigned = nextAssignees.filter((id) => !previousSet.has(id));
+
     await ctx.db.patch(taskId, finalPatch);
+
+    if (nextVisibility === "team" && nextTeamId && newlyAssigned.length > 0) {
+      const actor = userDisplayName(await ctx.db.get(userId));
+      const team = await ctx.db.get(nextTeamId);
+      const nextTitle = finalPatch.title ?? task.title;
+      for (const assigneeUserId of newlyAssigned) {
+        if (assigneeUserId === userId) continue;
+        const body = team?.name
+          ? `${actor} assigned "${nextTitle}" to you in ${team.name}.`
+          : `${actor} assigned "${nextTitle}" to you.`;
+        await ctx.scheduler.runAfter(0, internal.pushNotifications.sendPushNotification, {
+          userId: assigneeUserId,
+          title: "New task assignment",
+          body,
+          data: {
+            eventType: "task_assigned",
+            taskId,
+          },
+        });
+      }
+    }
   },
 });
 

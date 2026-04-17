@@ -1,6 +1,7 @@
 import { getAuthUserId } from "@convex-dev/auth/server";
 import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
+import { internal } from "./_generated/api";
 import {
   assertTeamAdmin,
   normalizeEmail,
@@ -56,6 +57,24 @@ export const createInvite = mutation({
       expiresAt: now + INVITE_TTL_MS,
       status: "pending",
     });
+
+    if (userWithEmail) {
+      const team = await ctx.db.get(args.teamId);
+      const inviter = await ctx.db.get(userId);
+      const inviterName = inviter?.name?.trim() || inviter?.email || "Someone";
+      const teamName = team?.name ?? "a team";
+      await ctx.scheduler.runAfter(0, internal.pushNotifications.sendPushNotification, {
+        userId: userWithEmail._id,
+        title: "Team invite",
+        body: `${inviterName} invited you to join ${teamName}.`,
+        data: {
+          eventType: "team_invite",
+          teamId: args.teamId,
+          inviteId,
+        },
+      });
+    }
+
     return inviteId;
   },
 });
@@ -146,6 +165,21 @@ export const acceptInvite = mutation({
       .unique();
     if (existing) {
       await ctx.db.patch(args.inviteId, { status: "accepted" });
+      if (inv.invitedBy !== userId) {
+        const team = await ctx.db.get(inv.teamId);
+        const accepterName = me.name?.trim() || me.email || "Someone";
+        await ctx.scheduler.runAfter(0, internal.pushNotifications.sendPushNotification, {
+          userId: inv.invitedBy,
+          title: "Invite accepted",
+          body: `${accepterName} accepted your invite to ${team?.name ?? "your team"}.`,
+          data: {
+            eventType: "team_invite_accepted",
+            teamId: inv.teamId,
+            inviteId: args.inviteId,
+            acceptedByUserId: userId,
+          },
+        });
+      }
       return inv.teamId;
     }
 
@@ -157,6 +191,21 @@ export const acceptInvite = mutation({
     });
     await ctx.db.patch(args.inviteId, { status: "accepted" });
     await ctx.db.patch(userId, { lastSelectedTeamId: inv.teamId });
+    if (inv.invitedBy !== userId) {
+      const team = await ctx.db.get(inv.teamId);
+      const accepterName = me.name?.trim() || me.email || "Someone";
+      await ctx.scheduler.runAfter(0, internal.pushNotifications.sendPushNotification, {
+        userId: inv.invitedBy,
+        title: "Invite accepted",
+        body: `${accepterName} accepted your invite to ${team?.name ?? "your team"}.`,
+        data: {
+          eventType: "team_invite_accepted",
+          teamId: inv.teamId,
+          inviteId: args.inviteId,
+          acceptedByUserId: userId,
+        },
+      });
+    }
     return inv.teamId;
   },
 });

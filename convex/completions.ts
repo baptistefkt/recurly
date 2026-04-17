@@ -1,6 +1,7 @@
 import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
 import { getAuthUserId } from "@convex-dev/auth/server";
+import { internal } from "./_generated/api";
 import { assertCanAccessTask } from "./teamAccess";
 
 function displayName(email: string | undefined, name: string | undefined) {
@@ -58,6 +59,32 @@ export const markComplete = mutation({
       completedAt: args.completedAt ?? Date.now(),
       note: args.note,
     });
+
+    if ((task.visibility ?? "personal") === "team") {
+      const completer = await ctx.db.get(userId);
+      const actor = displayName(completer?.email, completer?.name);
+      const recipients = new Set<typeof userId>();
+      if (task.userId !== userId) {
+        recipients.add(task.userId);
+      }
+      for (const assigneeUserId of task.assigneeUserIds ?? []) {
+        if (assigneeUserId !== userId) {
+          recipients.add(assigneeUserId);
+        }
+      }
+      for (const recipientUserId of recipients) {
+        await ctx.scheduler.runAfter(0, internal.pushNotifications.sendPushNotification, {
+          userId: recipientUserId,
+          title: "Task completed",
+          body: `${actor} completed "${task.title}".`,
+          data: {
+            eventType: "task_completed",
+            taskId: task._id,
+          },
+        });
+      }
+    }
+
     if (task.recurrenceType === "once") {
       await ctx.db.patch(args.taskId, { isArchived: true });
     }
