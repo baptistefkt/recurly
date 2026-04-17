@@ -47,9 +47,11 @@ export function parseDashboardUrlState(search: string): DashboardUrlState {
   const taskListFilter: TaskListFilter =
     scope === "all"
       ? { type: "all" }
-      : scope === "team" && teamId
-        ? { type: "team", teamId: teamId as Id<"teams"> }
-        : { type: "all" };
+      : scope === "personal"
+        ? { type: "personal" }
+        : scope === "team" && teamId
+          ? { type: "team", teamId: teamId as Id<"teams"> }
+          : { type: "all" };
 
   const rawStatus = params.get("status");
   const statusFilter =
