@@ -16,15 +16,15 @@ import {
   Trash2,
   UserPlus,
 } from "lucide-react";
-import { api } from "../convex/_generated/api";
-import { Id } from "../convex/_generated/dataModel";
-import { AssigneeAvatarGroup } from "./AssigneeAvatarGroup";
+import { api } from "../../../convex/_generated/api";
+import { Id } from "../../../convex/_generated/dataModel";
+import { AssigneeAvatarGroup } from "@/components/teams/AssigneeAvatarGroup";
 import { CompletionTimeline } from "./CompletionTimeline";
 import { TaskDueCountdown } from "./TaskDueCountdown";
-import { formatDistanceToNow } from "./dateUtils";
-import { ColoredAvatarFallback } from "@/components/ColoredAvatarFallback";
+import { formatDistanceToNow } from "@/lib/dateUtils";
+import { ColoredAvatarFallback } from "@/components/shared/ColoredAvatarFallback";
 import { getUserInitials } from "@/lib/userDisplay";
-import { humanizeRecurrence } from "./recurrenceFormat";
+import { humanizeRecurrence } from "@/lib/recurrenceFormat";
 import { Avatar, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";

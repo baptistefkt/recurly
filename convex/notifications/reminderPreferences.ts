@@ -1,6 +1,6 @@
 import { getAuthUserId } from "@convex-dev/auth/server";
 import { v } from "convex/values";
-import { internalQuery, mutation, query } from "./_generated/server";
+import { internalQuery, mutation, query } from "../_generated/server";
 
 const DEFAULTS = {
   enabled: true,

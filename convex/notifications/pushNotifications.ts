@@ -3,8 +3,8 @@
 import { v } from "convex/values";
 import { getApps, initializeApp, cert, App } from "firebase-admin/app";
 import { getMessaging, Messaging } from "firebase-admin/messaging";
-import { internalAction } from "./_generated/server";
-import { internal } from "./_generated/api";
+import { internalAction } from "../_generated/server";
+import { internal } from "../_generated/api";
 
 let firebaseApp: App | null = null;
 let firebaseMessaging: Messaging | null = null;
@@ -49,7 +49,7 @@ export const sendPushNotification = internalAction({
   },
   handler: async (ctx, args) => {
     const tokens: string[] = await ctx.runQuery(
-      internal.pushTokens.listTokensByUserId,
+      internal.notifications.pushTokens.listTokensByUserId,
       {
         userId: args.userId,
       }
@@ -85,7 +85,7 @@ export const sendPushNotification = internalAction({
           code === "messaging/invalid-registration-token" ||
           code === "messaging/registration-token-not-registered";
         if (!isInvalid || !token) return null;
-        await ctx.runMutation(internal.pushTokens.deleteTokenByValue, { token });
+        await ctx.runMutation(internal.notifications.pushTokens.deleteTokenByValue, { token });
         return token;
       })
     );

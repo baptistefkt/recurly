@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useMutation, useQuery } from "convex/react";
 import { toast } from "sonner";
-import { api } from "../convex/_generated/api";
+import { api } from "../../../convex/_generated/api";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
@@ -19,8 +19,8 @@ type Props = {
 };
 
 export function ReminderSettingsModal({ open, onOpenChange }: Props) {
-  const prefs = useQuery(api.reminderPreferences.getMyReminderPreferences, {});
-  const save = useMutation(api.reminderPreferences.updateMyReminderPreferences);
+  const prefs = useQuery(api.notifications.reminderPreferences.getMyReminderPreferences, {});
+  const save = useMutation(api.notifications.reminderPreferences.updateMyReminderPreferences);
   const [saving, setSaving] = useState(false);
 
   const [enabled, setEnabled] = useState(true);

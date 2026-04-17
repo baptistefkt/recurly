@@ -3,30 +3,30 @@ import { useQuery } from "convex/react";
 import autoAnimate from "@formkit/auto-animate";
 import { ClipboardList, Plus } from "lucide-react";
 import { useLocation, useSearch } from "wouter";
-import { api } from "../convex/_generated/api";
-import { TaskCard } from "./TaskCard";
-import { TaskModal } from "./TaskModal";
-import { TaskDetailModal } from "./TaskDetailModal";
-import { TeamBar } from "./TeamBar";
-import { UserMenu } from "./UserMenu";
-import { PendingInvitesBanner } from "./PendingInvitesBanner";
-import { Id } from "../convex/_generated/dataModel";
-import { DUE_GROUP_LABEL, groupTasksByDueGroup } from "./dueGroups";
+import { api } from "../../convex/_generated/api";
+import { Id } from "../../convex/_generated/dataModel";
+import { TaskCard } from "@/components/tasks/TaskCard";
+import { TaskModal } from "@/components/tasks/TaskModal";
+import { TaskDetailModal } from "@/components/tasks/TaskDetailModal";
+import { TeamBar } from "@/components/teams/TeamBar";
+import { UserMenu } from "@/components/user/UserMenu";
+import { PendingInvitesBanner } from "@/components/teams/PendingInvitesBanner";
+import { ReminderSettingsModal } from "@/components/reminders/ReminderSettingsModal";
+import { DUE_GROUP_LABEL, groupTasksByDueGroup } from "@/lib/dueGroups";
 import {
   listQueryArgs,
   taskModalContext,
   type TaskListFilter,
-} from "./taskListFilter";
-import { Button } from "@/components/ui/button";
-import { tagColorClass } from "@/lib/tagColors";
-import { cn } from "@/lib/utils";
-import { usePushNotifications } from "@/hooks/usePushNotifications";
-import { ReminderSettingsModal } from "./ReminderSettingsModal";
+} from "@/lib/taskListFilter";
 import {
   parseDashboardUrlState,
   serializeDashboardUrlState,
   type StatusFilter,
-} from "./urlState";
+} from "@/lib/urlState";
+import { Button } from "@/components/ui/button";
+import { tagColorClass } from "@/lib/tagColors";
+import { cn } from "@/lib/utils";
+import { usePushNotifications } from "@/hooks/usePushNotifications";
 
 function isTaskOverdue(task: { nextDueAt: number | null }, nowMs: number): boolean {
   return task.nextDueAt !== null && task.nextDueAt < nowMs;

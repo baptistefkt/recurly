@@ -1,7 +1,7 @@
 import { v } from "convex/values";
-import { internalMutation, internalQuery } from "./_generated/server";
-import type { Id } from "./_generated/dataModel";
-import { computeNextDue } from "./recurrence";
+import { internalMutation, internalQuery } from "../_generated/server";
+import type { Id } from "../_generated/dataModel";
+import { computeNextDue } from "../recurrence";
 
 const MAX_OWNED_TASKS = 500;
 const MAX_MEMBER_TEAMS = 100;

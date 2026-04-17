@@ -5,7 +5,7 @@ import {
   internalQuery,
   mutation,
   query,
-} from "./_generated/server";
+} from "../_generated/server";
 
 export const savePushToken = mutation({
   args: { token: v.string() },

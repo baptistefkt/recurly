@@ -73,7 +73,7 @@ export const markComplete = mutation({
         }
       }
       for (const recipientUserId of recipients) {
-        await ctx.scheduler.runAfter(0, internal.pushNotifications.sendPushNotification, {
+        await ctx.scheduler.runAfter(0, internal.notifications.pushNotifications.sendPushNotification, {
           userId: recipientUserId,
           title: "Task completed",
           body: `${actor} completed "${task.title}".`,

@@ -1,4 +1,4 @@
-import type { Id } from "../convex/_generated/dataModel";
+import type { Id } from "../../convex/_generated/dataModel";
 import type { TaskListFilter } from "./taskListFilter";
 
 export type StatusFilter = "all" | "overdue" | "doneToday" | "archived";

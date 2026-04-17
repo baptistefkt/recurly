@@ -2,11 +2,11 @@ import { Authenticated, Unauthenticated } from "convex/react";
 import { useEffect, useRef, useState } from "react";
 import { useConvexAuth } from "convex/react";
 import { Route, Switch, useLocation } from "wouter";
-import { PasswordResetForm } from "./PasswordResetForm";
-import { SignInForm } from "./SignInForm";
-import { StatsPage } from "./StatsPage";
+import { PasswordResetForm } from "@/components/auth/PasswordResetForm";
+import { SignInForm } from "@/components/auth/SignInForm";
+import { StatsPage } from "@/pages/StatsPage";
 import { Toaster } from "sonner";
-import { TaskDashboard } from "./TaskDashboard";
+import { TaskDashboard } from "@/pages/TaskDashboard";
 import {
   Card,
   CardContent,

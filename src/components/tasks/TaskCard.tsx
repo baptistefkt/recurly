@@ -1,11 +1,11 @@
 import { useMutation } from "convex/react";
 import { useEffect, useRef, useState } from "react";
 import { CalendarClock, CalendarDays, Check, CheckCheck, Repeat, TagIcon } from "lucide-react";
-import { api } from "../convex/_generated/api";
-import { Id } from "../convex/_generated/dataModel";
-import { AssigneeAvatarGroup, type TaskAssigneePreview } from "./AssigneeAvatarGroup";
-import { formatDistanceToNow } from "./dateUtils";
-import { humanizeRecurrence } from "./recurrenceFormat";
+import { api } from "../../../convex/_generated/api";
+import { Id } from "../../../convex/_generated/dataModel";
+import { AssigneeAvatarGroup, type TaskAssigneePreview } from "@/components/teams/AssigneeAvatarGroup";
+import { formatDistanceToNow } from "@/lib/dateUtils";
+import { humanizeRecurrence } from "@/lib/recurrenceFormat";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";

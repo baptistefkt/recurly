@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo } from "react";
 import { useMutation, useQuery } from "convex/react";
-import { api } from "../convex/_generated/api";
-import { Id } from "../convex/_generated/dataModel";
+import { api } from "../../../convex/_generated/api";
+import { Id } from "../../../convex/_generated/dataModel";
 import { toast } from "sonner";
 import {
   AlertDialog,
@@ -21,7 +21,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { DueDateTimeFields } from "@/components/DueDateTimeFields";
+import { DueDateTimeFields } from "@/components/shared/DueDateTimeFields";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";

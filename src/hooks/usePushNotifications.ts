@@ -83,8 +83,8 @@ function formatPushSetupError(err: unknown): string {
 }
 
 export function usePushNotifications(): UsePushNotificationsResult {
-  const savePushToken = useMutation(api.pushTokens.savePushToken);
-  const removePushToken = useMutation(api.pushTokens.removePushToken);
+  const savePushToken = useMutation(api.notifications.pushTokens.savePushToken);
+  const removePushToken = useMutation(api.notifications.pushTokens.removePushToken);
 
   const [status, setStatus] = useState<PushNotificationStatus>("idle");
   const [permission, setPermission] = useState<NotificationPermission | null>(

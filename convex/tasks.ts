@@ -409,7 +409,7 @@ export const create = mutation({
       const assignees = args.assigneeUserIds ?? [];
       for (const assigneeUserId of assignees) {
         if (assigneeUserId === userId) continue;
-        await ctx.scheduler.runAfter(0, internal.pushNotifications.sendPushNotification, {
+        await ctx.scheduler.runAfter(0, internal.notifications.pushNotifications.sendPushNotification, {
           userId: assigneeUserId,
           title: "New task assignment",
           body: assignmentBody(title),
@@ -622,7 +622,7 @@ export const update = mutation({
         const body = team?.name
           ? `${actor} assigned "${nextTitle}" to you in ${team.name}.`
           : `${actor} assigned "${nextTitle}" to you.`;
-        await ctx.scheduler.runAfter(0, internal.pushNotifications.sendPushNotification, {
+        await ctx.scheduler.runAfter(0, internal.notifications.pushNotifications.sendPushNotification, {
           userId: assigneeUserId,
           title: "New task assignment",
           body,

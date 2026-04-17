@@ -1,7 +1,7 @@
-import type { Id } from "../convex/_generated/dataModel";
+import type { Id } from "../../../convex/_generated/dataModel";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { AvatarGroup, AvatarGroupItem } from "@/components/ui/avatar-group";
-import { ColoredAvatarFallback } from "@/components/ColoredAvatarFallback";
+import { ColoredAvatarFallback } from "@/components/shared/ColoredAvatarFallback";
 import { getUserInitials } from "@/lib/userDisplay";
 import { cn } from "@/lib/utils";
 

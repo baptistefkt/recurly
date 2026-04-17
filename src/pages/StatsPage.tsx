@@ -14,9 +14,9 @@ import {
 } from "recharts";
 import { ChevronLeft } from "lucide-react";
 import { useLocation, useSearch } from "wouter";
-import { api } from "../convex/_generated/api";
-import { Id } from "../convex/_generated/dataModel";
-import { UserMenu } from "./UserMenu";
+import { api } from "../../convex/_generated/api";
+import { Id } from "../../convex/_generated/dataModel";
+import { UserMenu } from "@/components/user/UserMenu";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {

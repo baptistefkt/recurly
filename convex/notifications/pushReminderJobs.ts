@@ -1,8 +1,8 @@
 "use node";
 
-import { internalAction } from "./_generated/server";
-import { internal } from "./_generated/api";
-import type { Id } from "./_generated/dataModel";
+import { internalAction } from "../_generated/server";
+import { internal } from "../_generated/api";
+import type { Id } from "../_generated/dataModel";
 
 function isInQuietHours(
   nowMs: number,
@@ -42,7 +42,7 @@ export const dispatchRecurringTaskReminders = internalAction({
     const now = Date.now();
 
     const usersWithTokens: Id<"users">[] = await ctx.runQuery(
-      internal.pushTokens.listUserIdsWithPushTokens,
+      internal.notifications.pushTokens.listUserIdsWithPushTokens,
       { limit: 1000 }
     );
 
@@ -52,7 +52,7 @@ export const dispatchRecurringTaskReminders = internalAction({
     for (const userId of usersWithTokens) {
       checkedUsers += 1;
       const prefs = await ctx.runQuery(
-        internal.reminderPreferences.getReminderPreferencesForUser,
+        internal.notifications.reminderPreferences.getReminderPreferencesForUser,
         { userId }
       );
       if (!prefs.enabled) continue;
@@ -69,7 +69,7 @@ export const dispatchRecurringTaskReminders = internalAction({
       }
 
       const reminders = await ctx.runQuery(
-        internal.taskReminders.findPendingRemindersForUser,
+        internal.notifications.taskReminders.findPendingRemindersForUser,
         {
           userId,
           now,
@@ -82,7 +82,7 @@ export const dispatchRecurringTaskReminders = internalAction({
 
       for (const reminder of reminders) {
         const shouldSend = await ctx.runMutation(
-          internal.taskReminders.recordReminderIfNotSent,
+          internal.notifications.taskReminders.recordReminderIfNotSent,
           {
             userId: reminder.userId,
             taskId: reminder.taskId,
@@ -93,7 +93,7 @@ export const dispatchRecurringTaskReminders = internalAction({
         if (!shouldSend) continue;
 
         const content = reminderContent(reminder);
-        await ctx.runAction(internal.pushNotifications.sendPushNotification, {
+        await ctx.runAction(internal.notifications.pushNotifications.sendPushNotification, {
           userId: reminder.userId,
           title: content.title,
           body: content.body,

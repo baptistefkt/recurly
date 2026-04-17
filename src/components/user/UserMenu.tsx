@@ -2,7 +2,7 @@ import { useAuthActions } from "@convex-dev/auth/react";
 import { BarChart3, Bell, LogOut, Plus, Users } from "lucide-react";
 import { Avatar, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
-import { ColoredAvatarFallback } from "@/components/ColoredAvatarFallback";
+import { ColoredAvatarFallback } from "@/components/shared/ColoredAvatarFallback";
 import {
   DropdownMenu,
   DropdownMenuContent,

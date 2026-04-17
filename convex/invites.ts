@@ -63,7 +63,7 @@ export const createInvite = mutation({
       const inviter = await ctx.db.get(userId);
       const inviterName = inviter?.name?.trim() || inviter?.email || "Someone";
       const teamName = team?.name ?? "a team";
-      await ctx.scheduler.runAfter(0, internal.pushNotifications.sendPushNotification, {
+      await ctx.scheduler.runAfter(0, internal.notifications.pushNotifications.sendPushNotification, {
         userId: userWithEmail._id,
         title: "Team invite",
         body: `${inviterName} invited you to join ${teamName}.`,
@@ -168,7 +168,7 @@ export const acceptInvite = mutation({
       if (inv.invitedBy !== userId) {
         const team = await ctx.db.get(inv.teamId);
         const accepterName = me.name?.trim() || me.email || "Someone";
-        await ctx.scheduler.runAfter(0, internal.pushNotifications.sendPushNotification, {
+        await ctx.scheduler.runAfter(0, internal.notifications.pushNotifications.sendPushNotification, {
           userId: inv.invitedBy,
           title: "Invite accepted",
           body: `${accepterName} accepted your invite to ${team?.name ?? "your team"}.`,
@@ -194,7 +194,7 @@ export const acceptInvite = mutation({
     if (inv.invitedBy !== userId) {
       const team = await ctx.db.get(inv.teamId);
       const accepterName = me.name?.trim() || me.email || "Someone";
-      await ctx.scheduler.runAfter(0, internal.pushNotifications.sendPushNotification, {
+      await ctx.scheduler.runAfter(0, internal.notifications.pushNotifications.sendPushNotification, {
         userId: inv.invitedBy,
         title: "Invite accepted",
         body: `${accepterName} accepted your invite to ${team?.name ?? "your team"}.`,

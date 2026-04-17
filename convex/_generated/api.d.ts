@@ -8,21 +8,21 @@
  * @module
  */
 
-import type * as ResendOTPPasswordReset from "../ResendOTPPasswordReset.js";
 import type * as auth from "../auth.js";
 import type * as completions from "../completions.js";
 import type * as crons from "../crons.js";
-import type * as email from "../email.js";
+import type * as email_ResendOTPPasswordReset from "../email/ResendOTPPasswordReset.js";
+import type * as email_email from "../email/email.js";
 import type * as http from "../http.js";
 import type * as invites from "../invites.js";
-import type * as pushNotifications from "../pushNotifications.js";
-import type * as pushReminderJobs from "../pushReminderJobs.js";
-import type * as pushTokens from "../pushTokens.js";
+import type * as notifications_pushNotifications from "../notifications/pushNotifications.js";
+import type * as notifications_pushReminderJobs from "../notifications/pushReminderJobs.js";
+import type * as notifications_pushTokens from "../notifications/pushTokens.js";
+import type * as notifications_reminderPreferences from "../notifications/reminderPreferences.js";
+import type * as notifications_taskReminders from "../notifications/taskReminders.js";
 import type * as recurrence from "../recurrence.js";
-import type * as reminderPreferences from "../reminderPreferences.js";
 import type * as router from "../router.js";
 import type * as stats from "../stats.js";
-import type * as taskReminders from "../taskReminders.js";
 import type * as tasks from "../tasks.js";
 import type * as teamAccess from "../teamAccess.js";
 import type * as teams from "../teams.js";
@@ -34,21 +34,21 @@ import type {
 } from "convex/server";
 
 declare const fullApi: ApiFromModules<{
-  ResendOTPPasswordReset: typeof ResendOTPPasswordReset;
   auth: typeof auth;
   completions: typeof completions;
   crons: typeof crons;
-  email: typeof email;
+  "email/ResendOTPPasswordReset": typeof email_ResendOTPPasswordReset;
+  "email/email": typeof email_email;
   http: typeof http;
   invites: typeof invites;
-  pushNotifications: typeof pushNotifications;
-  pushReminderJobs: typeof pushReminderJobs;
-  pushTokens: typeof pushTokens;
+  "notifications/pushNotifications": typeof notifications_pushNotifications;
+  "notifications/pushReminderJobs": typeof notifications_pushReminderJobs;
+  "notifications/pushTokens": typeof notifications_pushTokens;
+  "notifications/reminderPreferences": typeof notifications_reminderPreferences;
+  "notifications/taskReminders": typeof notifications_taskReminders;
   recurrence: typeof recurrence;
-  reminderPreferences: typeof reminderPreferences;
   router: typeof router;
   stats: typeof stats;
-  taskReminders: typeof taskReminders;
   tasks: typeof tasks;
   teamAccess: typeof teamAccess;
   teams: typeof teams;

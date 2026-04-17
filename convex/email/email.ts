@@ -1,7 +1,7 @@
 import { Resend } from "@convex-dev/resend";
 import { v } from "convex/values";
-import { components } from "./_generated/api";
-import { internalMutation } from "./_generated/server";
+import { components } from "../_generated/api";
+import { internalMutation } from "../_generated/server";
 
 export const resend = new Resend(components.resend, {
   testMode: false,

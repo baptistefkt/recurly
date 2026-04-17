@@ -1,8 +1,8 @@
 import { useEffect, useRef, useState } from "react";
 import { useMutation, useQuery } from "convex/react";
 import { Settings } from "lucide-react";
-import { api } from "../convex/_generated/api";
-import { Id } from "../convex/_generated/dataModel";
+import { api } from "../../../convex/_generated/api";
+import { Id } from "../../../convex/_generated/dataModel";
 import { toast } from "sonner";
 import { TeamSettingsModal } from "./TeamSettingsModal";
 import {
@@ -10,7 +10,7 @@ import {
   taskListFilterToMutationView,
   viewTabValueToFilter,
   type TaskListFilter,
-} from "./taskListFilter";
+} from "@/lib/taskListFilter";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,

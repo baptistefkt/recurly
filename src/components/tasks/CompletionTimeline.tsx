@@ -1,7 +1,7 @@
 import { useMutation } from "convex/react";
 import { Check, X } from "lucide-react";
-import { api } from "../convex/_generated/api";
-import { Id } from "../convex/_generated/dataModel";
+import { api } from "../../../convex/_generated/api";
+import { Id } from "../../../convex/_generated/dataModel";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
