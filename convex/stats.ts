@@ -24,11 +24,11 @@ function getRangeStartAt(range: RangeValue, now: number): number {
   return 0;
 }
 
+/** Weight for stats; tasks without `points` set do not contribute (0). */
 function pointsForTask(task: Doc<"tasks">): number {
   const p = task.points;
-  if (p === undefined) return MIN_TASK_POINTS;
-  if (!Number.isInteger(p)) return MIN_TASK_POINTS;
-  if (p < MIN_TASK_POINTS || p > MAX_TASK_POINTS) return MIN_TASK_POINTS;
+  if (p === undefined) return 0;
+  if (!Number.isInteger(p) || p < MIN_TASK_POINTS || p > MAX_TASK_POINTS) return 0;
   return p;
 }
 

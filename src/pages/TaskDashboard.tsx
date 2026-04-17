@@ -76,6 +76,19 @@ export function TaskDashboard() {
     api.tasks.list,
     listQueryArgs(taskListFilter, true, selectedTag)
   );
+  /** Last loaded list: keeps stats + list stable while Convex returns undefined after query args change. */
+  const tasksStableRef = useRef<NonNullable<typeof tasks>>([]);
+  const tasksQueryResolvedRef = useRef(false);
+  useEffect(() => {
+    if (tasks !== undefined) {
+      tasksQueryResolvedRef.current = true;
+      tasksStableRef.current = tasks;
+    }
+  }, [tasks]);
+  const tasksSnapshot =
+    tasks !== undefined ? tasks : tasksStableRef.current;
+  const showTasksLoadingSpinner =
+    tasks === undefined && !tasksQueryResolvedRef.current;
   const user = useQuery(api.auth.loggedInUser);
 
   useEffect(() => {
@@ -155,9 +168,8 @@ export function TaskDashboard() {
   };
 
   const displayedTasks = (() => {
-    if (!tasks) return [];
-    const archived = tasks.filter((t) => t.isArchived);
-    const active = tasks.filter((t) => !t.isArchived);
+    const archived = tasksSnapshot.filter((t) => t.isArchived);
+    const active = tasksSnapshot.filter((t) => !t.isArchived);
     if (statusFilter === "archived") return archived;
     const filtered =
       statusFilter === "overdue"
@@ -174,12 +186,14 @@ export function TaskDashboard() {
   const groupedDueSections = groupTasksByDueGroup(displayedTasks, now);
   const showDueTimeline = groupedDueSections.length > 1;
 
-  const activeTaskCount = tasks?.filter((t) => !t.isArchived).length ?? 0;
-  const overdueCount =
-    tasks?.filter((t) => !t.isArchived && t.nextDueAt !== null && t.nextDueAt < now).length ?? 0;
-  const doneTodayCount =
-    tasks?.filter((t) => !t.isArchived && isDoneToday(t.lastCompletedAt)).length ?? 0;
-  const archivedCount = tasks?.filter((t) => t.isArchived).length ?? 0;
+  const activeTaskCount = tasksSnapshot.filter((t) => !t.isArchived).length;
+  const overdueCount = tasksSnapshot.filter(
+    (t) => !t.isArchived && t.nextDueAt !== null && t.nextDueAt < now
+  ).length;
+  const doneTodayCount = tasksSnapshot.filter(
+    (t) => !t.isArchived && isDoneToday(t.lastCompletedAt)
+  ).length;
+  const archivedCount = tasksSnapshot.filter((t) => t.isArchived).length;
   const attachListAnimation = (element: HTMLElement | null) => {
     if (!element || animatedListsRef.current.has(element)) return;
     autoAnimate(element, { duration: 240, easing: "ease-out" });
@@ -266,18 +280,15 @@ export function TaskDashboard() {
         <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
           {tagLabels !== undefined && tagLabels.length > 0 ? (
             <div className="min-w-0">
-              <div className="flex items-center gap-1 overflow-x-auto overflow-y-visible px-1 py-1">
+              <div
+                className={cn(
+                  "flex items-center gap-1 overflow-x-auto overflow-y-visible px-1 py-1",
+                  "[scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden"
+                )}
+              >
                 <span className="shrink-0 px-1 text-xs font-medium text-muted-foreground">
                   Filter by tags:
                 </span>
-                <Button
-                  type="button"
-                  variant={selectedTag === null ? "default" : "outline"}
-                  size="xs"
-                  onClick={() => setSelectedTag(null)}
-                >
-                  All
-                </Button>
                 {tagLabels.map((label) => (
                   <button
                     key={label}
@@ -314,7 +325,7 @@ export function TaskDashboard() {
           </Button>
         </div>
 
-        {tasks === undefined ? (
+        {showTasksLoadingSpinner ? (
           <div className="flex justify-center py-12">
             <div className="h-6 w-6 animate-spin rounded-full border-2 border-primary border-t-transparent" />
           </div>

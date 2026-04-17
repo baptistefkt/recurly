@@ -255,7 +255,9 @@ export function TaskDetailModal({
                     </PropertyRow>
 
                     <PropertyRow icon={BarChart3} label="Points">
-                      <span>{task.points ?? 1}</span>
+                      <span className={task.points === undefined ? "text-muted-foreground" : undefined}>
+                        {task.points === undefined ? "None" : task.points}
+                      </span>
                     </PropertyRow>
 
                     <PropertyRow

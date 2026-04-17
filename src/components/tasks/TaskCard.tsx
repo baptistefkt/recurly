@@ -89,7 +89,9 @@ export function TaskCard({
                 ) : (
                   <Badge variant="secondary">Personal</Badge>
                 )}
-                <Badge variant="outline">Pts {task.points ?? 1}</Badge>
+                {task.points !== undefined && (
+                  <Badge variant="outline">Pts {task.points}</Badge>
+                )}
                 {isOverdue && <Badge variant="destructive">Overdue</Badge>}
                 {isDueToday && !isOverdue && (
                   <Badge variant="secondary">Due today</Badge>
