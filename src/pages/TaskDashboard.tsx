@@ -231,6 +231,7 @@ export function TaskDashboard() {
                 : "";
               navigate(`/stats${dashboardQuery}`);
             }}
+            onOpenLists={() => navigate("/lists")}
           />
         </div>
       </header>

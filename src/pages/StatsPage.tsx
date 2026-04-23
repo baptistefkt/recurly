@@ -158,6 +158,7 @@ export function StatsPage() {
             onNewTeam={() => navigate("/")}
             onReminderSettings={() => navigate("/")}
             onOpenStats={() => navigate("/stats")}
+            onOpenLists={() => navigate("/lists")}
           />
         </div>
       </header>
