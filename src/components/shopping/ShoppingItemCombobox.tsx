@@ -1,23 +1,15 @@
 "use client";
 
 import * as React from "react";
-import {
-  Combobox,
-  ComboboxContent,
-  ComboboxEmpty,
-  ComboboxInput,
-  ComboboxItem,
-  ComboboxList,
-  useComboboxAnchor,
-} from "@/components/ui/combobox";
+import { Autocomplete } from "@base-ui/react/autocomplete";
+import { Input } from "@/components/ui/input";
+import { cn } from "@/lib/utils";
 import type { Id } from "../../../convex/_generated/dataModel";
 
 export type ShoppingSuggestionRow = {
   _id: Id<"shoppingListSuggestions">;
   displayLabel: string;
 };
-
-const LOG = (...args: unknown[]) => console.log("[ShoppingCombobox]", ...args);
 
 export function ShoppingItemCombobox({
   disabled,
@@ -38,116 +30,72 @@ export function ShoppingItemCombobox({
   placeholder?: string;
   inputId?: string;
 }) {
-  const anchorRef = useComboboxAnchor();
-  const highlightedItemRef = React.useRef<ShoppingSuggestionRow | undefined>(
+  const highlightedRef = React.useRef<ShoppingSuggestionRow | undefined>(
     undefined
   );
 
-  LOG("render", {
-    inputValue,
-    itemCount: items.length,
-    firstItem: items[0]?.displayLabel,
-  });
-
-  function handleInputKeyDown(event: React.KeyboardEvent<HTMLInputElement>) {
-    LOG("input keydown", {
-      key: event.key,
-      highlighted: highlightedItemRef.current?.displayLabel,
-      defaultPrevented: event.defaultPrevented,
-    });
-    if (event.key !== "Enter" || highlightedItemRef.current) {
-      return;
-    }
-    const text = inputValue.trim();
-    if (!text) return;
-    event.preventDefault();
-    void onSubmitCustom(text);
-  }
-
   return (
-    <Combobox<ShoppingSuggestionRow>
-      modal={false}
-      autoHighlight={"always" as unknown as boolean}
+    <Autocomplete.Root<ShoppingSuggestionRow>
       items={items}
-      filter={null}
-      inputValue={inputValue}
-      onInputValueChange={(value, details) => {
-        LOG("onInputValueChange", { value, reason: details.reason });
-        if (details.reason === "item-press") return;
+      value={inputValue}
+      openOnInputClick
+      itemToStringValue={(row) => row.displayLabel}
+      onItemHighlighted={(item) => {
+        highlightedRef.current = item;
+      }}
+      onValueChange={(value, details) => {
+        if (details.reason === "item-press") {
+          void onPickSuggestion(value);
+          return;
+        }
         onInputValueChange(value);
       }}
-      onValueChange={(item, details) => {
-        LOG("onValueChange", {
-          label: item?.displayLabel,
-          reason: details.reason,
-        });
-        if (!item) return;
-        void onPickSuggestion(item.displayLabel);
-      }}
-      onOpenChange={(open, details) => {
-        LOG("onOpenChange", { open, reason: details.reason });
-      }}
-      onItemHighlighted={(item, details) => {
-        LOG("onItemHighlighted", {
-          label: item?.displayLabel,
-          reason: details.reason,
-          index: details.index,
-        });
-        const optionNodes = document.querySelectorAll('[role="option"]');
-        LOG("DOM options", {
-          count: optionNodes.length,
-          labels: Array.from(optionNodes).map(
-            (n) => (n as HTMLElement).textContent?.trim().slice(0, 20)
-          ),
-          firstVisible:
-            optionNodes[0] != null
-              ? (optionNodes[0] as HTMLElement).checkVisibility?.()
-              : "n/a",
-          firstConnected:
-            optionNodes[0] != null ? optionNodes[0].isConnected : "n/a",
-        });
-        highlightedItemRef.current = item;
-      }}
-      autoComplete="off"
-      itemToStringLabel={(row) => row.displayLabel}
     >
-      <div ref={anchorRef} className="w-full">
-        <ComboboxInput
-          id={inputId}
-          disabled={disabled}
-          placeholder={placeholder ?? "Add an item…"}
-          showClear={inputValue.length > 0}
-          className="w-full"
-          onKeyDown={handleInputKeyDown}
-          onFocus={() => LOG("input focus")}
-          onBlur={() => LOG("input blur")}
-          onClick={() => LOG("input click")}
-        />
-      </div>
-      <ComboboxContent
-        anchor={anchorRef}
-        sideOffset={6}
-        className="min-w-(--anchor-width)"
-      >
-        <ComboboxList>
-          {(item: ShoppingSuggestionRow, index: number) => (
-            <ComboboxItem
-              key={item._id}
-              index={index}
-              value={item}
-              onClick={() =>
-                LOG("item onClick", { label: item.displayLabel, index })
-              }
-              onMouseEnter={() =>
-                LOG("item onMouseEnter", item.displayLabel)
-              }
-            >
-              {item.displayLabel}
-            </ComboboxItem>
-          )}
-        </ComboboxList>
-        <ComboboxEmpty>No matching saved items.</ComboboxEmpty>
-      </ComboboxContent>
-    </Combobox>
+      <Autocomplete.Input
+        render={
+          <Input
+            id={inputId}
+            disabled={disabled}
+            placeholder={placeholder ?? "Add an item…"}
+          />
+        }
+        onKeyDown={(event) => {
+          if (event.key !== "Enter" || event.defaultPrevented) return;
+          if (highlightedRef.current) return;
+          const trimmed = inputValue.trim();
+          if (!trimmed) return;
+          event.preventDefault();
+          void onSubmitCustom(trimmed);
+        }}
+      />
+      <Autocomplete.Portal>
+        <Autocomplete.Positioner
+          sideOffset={6}
+          className="z-50 pointer-events-auto outline-none"
+        >
+          <Autocomplete.Popup
+            className={cn(
+              "pointer-events-auto max-h-(--available-height) w-(--anchor-width) max-w-(--available-width) overflow-hidden rounded-3xl border border-border/60 bg-popover text-popover-foreground shadow-lg ring-1 ring-foreground/5 dark:ring-foreground/10",
+              "data-[side=bottom]:slide-in-from-top-2 data-[side=top]:slide-in-from-bottom-2 data-open:animate-in data-open:fade-in-0 data-open:zoom-in-95 data-closed:animate-out data-closed:fade-out-0 data-closed:zoom-out-95"
+            )}
+          >
+            <Autocomplete.List className="max-h-72 overflow-y-auto overscroll-contain p-1.5">
+              {(item: ShoppingSuggestionRow) => (
+                <Autocomplete.Item
+                  key={item._id}
+                  value={item}
+                  className="relative flex w-full cursor-default items-center rounded-2xl px-3 py-2 text-sm outline-none select-none data-highlighted:bg-accent data-highlighted:text-accent-foreground"
+                >
+                  {item.displayLabel}
+                </Autocomplete.Item>
+              )}
+            </Autocomplete.List>
+            <Autocomplete.Empty className="px-3 py-2 text-sm text-muted-foreground empty:hidden">
+              No matching saved items.
+            </Autocomplete.Empty>
+          </Autocomplete.Popup>
+        </Autocomplete.Positioner>
+      </Autocomplete.Portal>
+    </Autocomplete.Root>
   );
 }

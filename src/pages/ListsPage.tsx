@@ -125,7 +125,7 @@ export function ListsPage() {
   );
   const suggestions = useQuery(
     api.shoppingLists.listSuggestions,
-    listIdParam ? { listId: listIdParam, prefix: addDraft } : "skip"
+    listIdParam ? { listId: listIdParam } : "skip"
   );
 
   const createList = useMutation(api.shoppingLists.createList);
@@ -618,7 +618,7 @@ export function ListsPage() {
                                   setEditingItemId(null);
                                 }
                               }}
-                              className="h-8 min-h-8 flex-1 rounded-lg border-0 bg-transparent px-1 text-sm shadow-none focus-visible:ring-1"
+                              className="h-8 min-h-8 flex-1 rounded-3xl border border-transparent bg-input/50 px-3 text-sm shadow-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/30"
                             />
                           ) : (
                             <button
