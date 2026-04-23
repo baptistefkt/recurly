@@ -37,9 +37,14 @@ if (hasFirebaseConfig) {
   const messaging = getMessaging(app);
 
   onBackgroundMessage(messaging, (payload) => {
-    const title = payload.notification?.title || payload.data?.title || "Recurly";
-    const body =
-      payload.notification?.body || payload.data?.body || "You have a new notification";
+    // Messages that include `notification` are already shown by the FCM web stack; calling
+    // `showNotification` here duplicates OS banners (see Firebase "receive messages" web docs).
+    if (payload.notification) {
+      return;
+    }
+
+    const title = payload.data?.title || "Recurly";
+    const body = payload.data?.body || "You have a new notification";
 
     void self.registration.showNotification(title, {
       body,
@@ -73,7 +78,8 @@ function notificationTargetPath(data: Record<string, unknown>): string {
 }
 
 // Do not add a separate `push` listener that calls `showNotification`: FCM already delivers
-// the same message to `onBackgroundMessage` above, and a second handler would duplicate OS notifications.
+// the same message to `onBackgroundMessage`. Also do not call `showNotification` when the payload
+// already includes `notification` — the browser shows that once automatically.
 
 self.addEventListener("notificationclick", (event) => {
   event.notification.close();
