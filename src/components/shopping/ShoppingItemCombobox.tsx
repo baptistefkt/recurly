@@ -6,9 +6,10 @@ import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 import type { Id } from "../../../convex/_generated/dataModel";
 
-export type ShoppingSuggestionRow = {
-  _id: Id<"shoppingListSuggestions">;
+export type ShoppingAutocompleteRow = {
+  rowKey: string;
   displayLabel: string;
+  reuseItemId?: Id<"shoppingListItems">;
 };
 
 export function ShoppingItemCombobox({
@@ -20,22 +21,24 @@ export function ShoppingItemCombobox({
   onSubmitCustom,
   placeholder,
   inputId,
+  children,
 }: {
   disabled?: boolean;
   inputValue: string;
   onInputValueChange: (value: string) => void;
-  items: ShoppingSuggestionRow[];
-  onPickSuggestion: (label: string) => void | Promise<void>;
+  items: ShoppingAutocompleteRow[];
+  onPickSuggestion: (row: ShoppingAutocompleteRow) => void | Promise<void>;
   onSubmitCustom: (text: string) => void | Promise<void>;
   placeholder?: string;
   inputId?: string;
+  children?: React.ReactNode;
 }) {
-  const highlightedRef = React.useRef<ShoppingSuggestionRow | undefined>(
+  const highlightedRef = React.useRef<ShoppingAutocompleteRow | undefined>(
     undefined
   );
 
   return (
-    <Autocomplete.Root<ShoppingSuggestionRow>
+    <Autocomplete.Root<ShoppingAutocompleteRow>
       items={items}
       value={inputValue}
       openOnInputClick
@@ -43,12 +46,13 @@ export function ShoppingItemCombobox({
       onItemHighlighted={(item) => {
         highlightedRef.current = item;
       }}
-      onValueChange={(value, details) => {
+      onValueChange={(nextValue, details) => {
         if (details.reason === "item-press") {
-          void onPickSuggestion(value);
+          const row = highlightedRef.current;
+          if (row) void onPickSuggestion(row);
           return;
         }
-        onInputValueChange(value);
+        onInputValueChange(nextValue);
       }}
     >
       <Autocomplete.Input
@@ -80,9 +84,9 @@ export function ShoppingItemCombobox({
             )}
           >
             <Autocomplete.List className="max-h-72 overflow-y-auto overscroll-contain p-1.5">
-              {(item: ShoppingSuggestionRow) => (
+              {(item: ShoppingAutocompleteRow) => (
                 <Autocomplete.Item
-                  key={item._id}
+                  key={item.rowKey}
                   value={item}
                   className="relative flex w-full cursor-default items-center rounded-2xl px-3 py-2 text-sm outline-none select-none data-highlighted:bg-accent data-highlighted:text-accent-foreground"
                 >
@@ -96,6 +100,7 @@ export function ShoppingItemCombobox({
           </Autocomplete.Popup>
         </Autocomplete.Positioner>
       </Autocomplete.Portal>
+      {children}
     </Autocomplete.Root>
   );
 }

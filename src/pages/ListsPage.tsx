@@ -1,10 +1,21 @@
 import { useMutation, useQuery } from "convex/react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import autoAnimate from "@formkit/auto-animate";
-import { ShoppingItemCombobox } from "@/components/shopping/ShoppingItemCombobox";
+import {
+  ShoppingItemCombobox,
+  type ShoppingAutocompleteRow,
+} from "@/components/shopping/ShoppingItemCombobox";
+import {
+  AMBIGUOUS_MAX_SCORE,
+  AMBIGUOUS_MIN_SCORE,
+  AUTO_REUSE_MAX_SCORE,
+  bestIncompleteFuseMatch,
+  normalizeShoppingInput,
+} from "@/lib/shoppingItemMatch";
 import {
   Archive,
   ArchiveRestore,
+  Check,
   ChevronLeft,
   ListChecks,
   MoreVertical,
@@ -47,7 +58,6 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import {
   Select,
@@ -79,10 +89,21 @@ type PreviewRow = {
 
 function previewLineClass(index: number): string {
   if (index < 5) return "";
-  if (index < 8) return "hidden sm:block";
-  if (index < 10) return "hidden lg:block";
-  return "hidden xl:block";
+  if (index < 8) return "hidden sm:flex";
+  if (index < 10) return "hidden lg:flex";
+  return "hidden xl:flex";
 }
+
+const SUGGESTION_PREFIX_DEBOUNCE_MS = 220;
+
+type SuggestionQueryRow = {
+  rowKey: string;
+  displayLabel: string;
+  normalizedLabel: string;
+  reuseItemId?: Id<"shoppingListItems">;
+};
+
+const NO_SUGGESTIONS: SuggestionQueryRow[] = [];
 
 export function ListsPage() {
   const [, navigate] = useLocation();
@@ -95,11 +116,20 @@ export function ListsPage() {
   const [newScope, setNewScope] = useState<"personal" | Id<"teams">>("personal");
   const [deleteListOpen, setDeleteListOpen] = useState(false);
   const [addDraft, setAddDraft] = useState("");
+  const [ambiguous, setAmbiguous] = useState<{
+    itemId: Id<"shoppingListItems">;
+    label: string;
+    typed: string;
+  } | null>(null);
+  const [debouncedSuggestionPrefix, setDebouncedSuggestionPrefix] = useState("");
+  const suggestionsStaleRef = useRef<SuggestionQueryRow[] | undefined>(undefined);
   const [editingItemId, setEditingItemId] = useState<Id<"shoppingListItems"> | null>(null);
   const [editText, setEditText] = useState("");
   const [editingTitle, setEditingTitle] = useState(false);
   const editInputRef = useRef<HTMLInputElement>(null);
   const titleInputRef = useRef<HTMLInputElement>(null);
+  const editingItemIdRef = useRef<Id<"shoppingListItems"> | null>(null);
+  const editTextRef = useRef("");
   const animatedItemsListRef = useRef<WeakSet<HTMLElement>>(new WeakSet());
 
   const attachItemsListAnimation = useCallback((element: HTMLElement | null) => {
@@ -125,6 +155,10 @@ export function ListsPage() {
   );
   const suggestions = useQuery(
     api.shoppingLists.listSuggestions,
+    listIdParam ? { listId: listIdParam, prefix: debouncedSuggestionPrefix } : "skip"
+  );
+  const aliases = useQuery(
+    api.shoppingLists.listShoppingAliases,
     listIdParam ? { listId: listIdParam } : "skip"
   );
 
@@ -133,6 +167,7 @@ export function ListsPage() {
   const setListArchived = useMutation(api.shoppingLists.setListArchived);
   const removeList = useMutation(api.shoppingLists.removeList);
   const addItem = useMutation(api.shoppingLists.addItem);
+  const reuseShoppingItem = useMutation(api.shoppingLists.reuseShoppingItem);
   const updateItemText = useMutation(api.shoppingLists.updateItemText);
   const deleteItem = useMutation(api.shoppingLists.deleteItem);
   const toggleItemComplete = useMutation(api.shoppingLists.toggleItemComplete);
@@ -144,6 +179,35 @@ export function ListsPage() {
     }
     return m;
   }, [memberships]);
+
+  const aliasToItemId = useMemo(() => {
+    const m = new Map<string, Id<"shoppingListItems">>();
+    for (const row of aliases ?? []) {
+      m.set(row.normalizedAlias, row.itemId);
+    }
+    return m;
+  }, [aliases]);
+
+  if (suggestions !== undefined) {
+    suggestionsStaleRef.current = suggestions;
+  }
+  const suggestionsForAutocomplete =
+    suggestions ?? suggestionsStaleRef.current ?? NO_SUGGESTIONS;
+
+  const suggestionRows: ShoppingAutocompleteRow[] = useMemo(
+    () =>
+      suggestionsForAutocomplete.map((s) => ({
+        rowKey: s.rowKey,
+        displayLabel: s.displayLabel,
+        reuseItemId: s.reuseItemId,
+      })),
+    [suggestionsForAutocomplete]
+  );
+
+  const setAddDraftClearAmbiguous = useCallback((v: string) => {
+    setAmbiguous(null);
+    setAddDraft(v);
+  }, []);
 
   const openList = useCallback(
     (id: Id<"shoppingLists">) => {
@@ -169,13 +233,33 @@ export function ListsPage() {
     setEditingTitle(false);
     setEditingItemId(null);
     setAddDraft("");
+    setAmbiguous(null);
+    setDebouncedSuggestionPrefix("");
+    suggestionsStaleRef.current = undefined;
   }, [listIdParam]);
+
+  useEffect(() => {
+    if (!listIdParam) return;
+    const id = window.setTimeout(() => {
+      setDebouncedSuggestionPrefix(addDraft);
+    }, SUGGESTION_PREFIX_DEBOUNCE_MS);
+    return () => window.clearTimeout(id);
+  }, [addDraft, listIdParam]);
+
+  editingItemIdRef.current = editingItemId;
+  editTextRef.current = editText;
 
   useEffect(() => {
     if (!editingItemId) return;
     editInputRef.current?.focus();
     editInputRef.current?.select();
   }, [editingItemId]);
+
+  useEffect(() => {
+    if (!editingItemId || !items) return;
+    const row = items.find((i) => i._id === editingItemId);
+    if (row?.completed) setEditingItemId(null);
+  }, [items, editingItemId]);
 
   const listTitle = selectedList?.title ?? "";
   const [titleDraft, setTitleDraft] = useState(listTitle);
@@ -228,6 +312,61 @@ export function ListsPage() {
     if (!listIdParam) return;
     const trimmed = text.trim();
     if (!trimmed) return;
+    setAmbiguous(null);
+
+    if (items === undefined || aliases === undefined) {
+      toast.error("Still loading…");
+      return;
+    }
+
+    const normalized = normalizeShoppingInput(trimmed);
+    const aliasItemId = aliasToItemId.get(normalized);
+    if (aliasItemId) {
+      const target = items.find((i) => i._id === aliasItemId);
+      if (target && !target.completed) {
+        try {
+          await reuseShoppingItem({ itemId: aliasItemId, typedText: trimmed });
+          setAddDraft("");
+          requestAnimationFrame(() => {
+            document.getElementById("shopping-list-add-item")?.focus();
+          });
+        } catch (err) {
+          toast.error(err instanceof Error ? err.message : "Could not add item");
+        }
+        return;
+      }
+    }
+
+    const pool = items.map((i) => ({
+      _id: i._id,
+      text: i.text,
+      canonicalName: i.canonicalName,
+      completed: i.completed,
+    }));
+    const best = bestIncompleteFuseMatch(trimmed, pool);
+    if (best) {
+      if (best.score < AUTO_REUSE_MAX_SCORE) {
+        try {
+          await reuseShoppingItem({ itemId: best.item._id, typedText: trimmed });
+          setAddDraft("");
+          requestAnimationFrame(() => {
+            document.getElementById("shopping-list-add-item")?.focus();
+          });
+        } catch (err) {
+          toast.error(err instanceof Error ? err.message : "Could not add item");
+        }
+        return;
+      }
+      if (best.score >= AMBIGUOUS_MIN_SCORE && best.score <= AMBIGUOUS_MAX_SCORE) {
+        setAmbiguous({
+          itemId: best.item._id,
+          label: best.item.text,
+          typed: trimmed,
+        });
+        return;
+      }
+    }
+
     try {
       await addItem({ listId: listIdParam, text: trimmed });
       setAddDraft("");
@@ -239,24 +378,54 @@ export function ListsPage() {
     }
   }
 
-  async function addItemFromSuggestion(label: string) {
-    await handleAddItem(label);
+  async function addItemFromSuggestion(row: ShoppingAutocompleteRow) {
+    if (!listIdParam) return;
+    setAmbiguous(null);
+    try {
+      if (row.reuseItemId) {
+        await reuseShoppingItem({
+          itemId: row.reuseItemId,
+          typedText: row.displayLabel,
+        });
+      } else {
+        await addItem({ listId: listIdParam, text: row.displayLabel });
+      }
+      setAddDraft("");
+      requestAnimationFrame(() => {
+        document.getElementById("shopping-list-add-item")?.focus();
+      });
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Could not add item");
+    }
   }
 
   async function commitEditItem() {
-    if (!editingItemId) return;
-    const text = editText.trim();
+    const itemId = editingItemIdRef.current;
+    if (!itemId) return;
+    const text = editTextRef.current.trim();
     if (!text) {
       setEditingItemId(null);
       return;
     }
     try {
-      await updateItemText({ itemId: editingItemId, text });
+      await updateItemText({ itemId, text });
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Could not save");
     }
     setEditingItemId(null);
   }
+
+  /** Avoid committing on the spurious blur from opening the editor (button → input) or Strict remounts. */
+  const scheduleCommitEditFromBlur = useCallback(() => {
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        const el = editInputRef.current;
+        if (!el) return;
+        if (document.activeElement === el) return;
+        void commitEditItem();
+      });
+    });
+  }, []);
 
   const detailOpen = Boolean(listIdParam);
   const listDetailLoading = Boolean(listIdParam && selectedList === undefined);
@@ -306,7 +475,7 @@ export function ListsPage() {
             </h1>
             <p className="max-w-xl text-sm text-muted-foreground sm:text-base">
               Quick shopping lists with suggestions and real-time sync for teams. Open a card to
-              edit; everything saves automatically.
+              edit. Everything saves automatically.
             </p>
           </div>
           <div className="flex shrink-0 flex-col gap-3 sm:items-end">
@@ -394,12 +563,27 @@ export function ListsPage() {
                           <li
                             key={item._id}
                             className={cn(
-                              "truncate text-muted-foreground",
+                              "flex min-w-0 items-center gap-1.5 text-muted-foreground",
                               item.completed && "line-through opacity-60",
                               previewLineClass(index)
                             )}
                           >
-                            <span className="text-foreground/80">{item.text}</span>
+                            <span
+                              aria-hidden
+                              className={cn(
+                                "pointer-events-none flex size-4 shrink-0 items-center justify-center rounded-[5px] border border-border/80 bg-input/90 text-primary-foreground shadow-none",
+                                item.completed
+                                  ? "border-primary bg-primary"
+                                  : "border-transparent"
+                              )}
+                            >
+                              {item.completed ? (
+                                <Check className="size-3.5 text-primary-foreground" strokeWidth={2.5} />
+                              ) : null}
+                            </span>
+                            <span className="min-w-0 flex-1 truncate text-foreground/80">
+                              {item.text}
+                            </span>
                           </li>
                         ))
                       )}
@@ -459,7 +643,7 @@ export function ListsPage() {
             </>
           ) : (
             <>
-              <div className="flex items-start gap-3 border-b border-border/60 px-5 py-4 sm:px-6">
+              <div className="flex shrink-0 items-start gap-3 border-b border-border/60 px-5 py-4 sm:px-6">
                 <div className="min-w-0 flex-1">
                   {editingTitle ? (
                     <input
@@ -557,8 +741,8 @@ export function ListsPage() {
                 </div>
               </div>
 
-              <ScrollArea className="max-h-[calc(min(92vh,52rem)-8.5rem)] flex-1 px-5 pb-4 sm:px-6">
-                <div className="space-y-4 pb-4 pt-4">
+              <div className="min-h-0 min-w-0 flex-1 overflow-y-auto overscroll-contain px-5 pb-4 sm:px-6">
+                <div className="min-w-0 space-y-4 pb-4 pt-4">
                   <div className="space-y-1.5">
                     <Label htmlFor="shopping-list-add-item" className="text-xs text-muted-foreground">
                       Add item
@@ -568,30 +752,87 @@ export function ListsPage() {
                         inputId="shopping-list-add-item"
                         disabled={!listIdParam}
                         inputValue={addDraft}
-                        onInputValueChange={setAddDraft}
-                        items={suggestions ?? []}
+                        onInputValueChange={setAddDraftClearAmbiguous}
+                        items={suggestionRows}
                         onPickSuggestion={addItemFromSuggestion}
                         onSubmitCustom={handleAddItem}
                         placeholder="Search suggestions or type a new item…"
-                      />
+                      >
+                        {ambiguous ? (
+                          <div className="mt-2 flex flex-wrap items-center gap-2 rounded-2xl border border-border/60 bg-muted/40 px-3 py-2 text-sm text-foreground">
+                            <span>
+                              Did you mean{" "}
+                              <span className="font-medium text-foreground">{ambiguous.label}</span>?
+                            </span>
+                            <Button
+                              type="button"
+                              size="sm"
+                              className="h-8 rounded-full"
+                              onClick={async () => {
+                                if (!listIdParam) return;
+                                try {
+                                  await reuseShoppingItem({
+                                    itemId: ambiguous.itemId,
+                                    typedText: ambiguous.typed,
+                                  });
+                                  setAmbiguous(null);
+                                  setAddDraft("");
+                                  requestAnimationFrame(() => {
+                                    document.getElementById("shopping-list-add-item")?.focus();
+                                  });
+                                } catch (err) {
+                                  toast.error(err instanceof Error ? err.message : "Failed");
+                                }
+                              }}
+                            >
+                              Accept
+                            </Button>
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="sm"
+                              className="h-8 rounded-full"
+                              onClick={async () => {
+                                if (!listIdParam) return;
+                                try {
+                                  await addItem({ listId: listIdParam, text: ambiguous.typed });
+                                  setAmbiguous(null);
+                                  setAddDraft("");
+                                  requestAnimationFrame(() => {
+                                    document.getElementById("shopping-list-add-item")?.focus();
+                                  });
+                                } catch (err) {
+                                  toast.error(err instanceof Error ? err.message : "Failed");
+                                }
+                              }}
+                            >
+                              Keep original
+                            </Button>
+                          </div>
+                        ) : null}
+                      </ShoppingItemCombobox>
                     </div>
                   </div>
 
-                  <ul ref={attachItemsListAnimation} className="flex flex-col border-t border-border/50">
-                    {items?.length === 0 ? (
-                      <li className="border-b border-border/50 py-8 text-center text-sm text-muted-foreground">
-                        No items yet.
-                      </li>
-                    ) : (
-                      items?.map((item) => (
-                        <li
-                          key={item._id}
-                          className={cn(
-                            "group flex min-h-8 items-center gap-2 border-b border-border/50 py-1 pr-0.5 pl-0.5 transition-colors last:border-b-0",
-                            "hover:bg-muted/40",
-                            item.completed && "text-muted-foreground"
-                          )}
-                        >
+                  <div
+                    ref={attachItemsListAnimation}
+                    className="min-w-0 border-t border-border/50"
+                  >
+                    <ul className="flex min-w-0 flex-col">
+                      {items?.length === 0 ? (
+                        <li className="border-b border-border/50 py-8 text-center text-sm text-muted-foreground">
+                          No items yet.
+                        </li>
+                      ) : (
+                        items?.map((item) => (
+                          <li
+                            key={item._id}
+                            className={cn(
+                              "group flex min-h-8 items-center gap-2 border-b border-border/50 py-1 pr-0.5 pl-0.5 transition-colors last:border-b-0",
+                              "hover:bg-muted/40",
+                              item.completed && "text-muted-foreground"
+                            )}
+                          >
                           <Checkbox
                             checked={item.completed}
                             onCheckedChange={async () => {
@@ -601,14 +842,14 @@ export function ListsPage() {
                                 toast.error(err instanceof Error ? err.message : "Failed");
                               }
                             }}
-                            className="shrink-0"
+                            className={cn("shrink-0", item.completed && "opacity-60")}
                           />
-                          {editingItemId === item._id ? (
+                          {editingItemId === item._id && !item.completed ? (
                             <Input
                               ref={editInputRef}
                               value={editText}
                               onChange={(e) => setEditText(e.target.value)}
-                              onBlur={() => void commitEditItem()}
+                              onBlur={scheduleCommitEditFromBlur}
                               onKeyDown={(e) => {
                                 if (e.key === "Enter") {
                                   e.preventDefault();
@@ -618,15 +859,20 @@ export function ListsPage() {
                                   setEditingItemId(null);
                                 }
                               }}
-                              className="h-8 min-h-8 flex-1 rounded-3xl border border-transparent bg-input/50 px-3 text-sm shadow-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/30"
+                              className="h-8 min-h-8 flex-1 self-center rounded-3xl border border-transparent bg-input/50 px-3 text-sm shadow-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/30"
                             />
+                          ) : item.completed ? (
+                            <span className="ml-1.5 flex min-w-0 flex-1 cursor-default items-center self-stretch truncate py-0.5 text-left text-sm leading-snug select-none line-through opacity-60">
+                              {item.text}
+                            </span>
                           ) : (
                             <button
                               type="button"
-                              className={cn(
-                                "min-h-8 min-w-0 flex-1 truncate py-0.5 text-left text-sm leading-snug",
-                                item.completed && "line-through opacity-60"
-                              )}
+                              className="ml-1.5 flex min-w-0 flex-1 items-center self-stretch truncate py-0.5 text-left text-sm leading-snug"
+                              onMouseDown={(e) => {
+                                // Avoid focus on this control so blur→commit doesn't fire when swapping to the input.
+                                e.preventDefault();
+                              }}
                               onClick={() => {
                                 setEditingItemId(item._id);
                                 setEditText(item.text);
@@ -651,14 +897,15 @@ export function ListsPage() {
                           >
                             <X className="h-3.5 w-3.5" />
                           </Button>
-                        </li>
-                      ))
-                    )}
-                  </ul>
+                          </li>
+                        ))
+                      )}
+                    </ul>
+                  </div>
                 </div>
-              </ScrollArea>
+              </div>
 
-              <div className="border-t border-border/60 bg-muted/20 px-5 py-3 sm:px-6">
+              <div className="shrink-0 border-t border-border/60 bg-muted/20 px-5 py-3 sm:px-6">
                 <DialogClose asChild>
                   <Button type="button" variant="secondary" className="w-full rounded-3xl sm:w-auto">
                     Done

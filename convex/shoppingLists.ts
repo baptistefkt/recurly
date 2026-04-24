@@ -13,6 +13,10 @@ function normalizeLabel(text: string): string {
   return text.trim().toLowerCase();
 }
 
+function itemCanonical(item: Doc<"shoppingListItems">): string {
+  return item.canonicalName ?? normalizeLabel(item.text);
+}
+
 async function requireList(ctx: DbCtx, listId: Id<"shoppingLists">) {
   const list = await ctx.db.get(listId);
   if (!list) throw new Error("List not found");
@@ -75,6 +79,85 @@ async function mergedShoppingListsForUser(
   }
   merged.sort((a, b) => b.createdAt - a.createdAt);
   return merged;
+}
+
+async function incrementItemUsage(
+  ctx: MutationCtx,
+  userId: Id<"users">,
+  listId: Id<"shoppingLists">,
+  itemId: Id<"shoppingListItems">
+) {
+  const now = Date.now();
+  const existing = await ctx.db
+    .query("shoppingListItemUserUsage")
+    .withIndex("by_user_and_item", (q) => q.eq("userId", userId).eq("itemId", itemId))
+    .unique();
+
+  if (existing) {
+    await ctx.db.patch(existing._id, {
+      count: existing.count + 1,
+      lastUsedAt: now,
+    });
+  } else {
+    await ctx.db.insert("shoppingListItemUserUsage", {
+      userId,
+      listId,
+      itemId,
+      count: 1,
+      lastUsedAt: now,
+    });
+  }
+}
+
+async function tryInsertAlias(
+  ctx: MutationCtx,
+  listId: Id<"shoppingLists">,
+  itemId: Id<"shoppingListItems">,
+  typedText: string
+) {
+  const item = await ctx.db.get(itemId);
+  if (!item) return;
+  const normalizedAlias = normalizeLabel(typedText);
+  if (normalizedAlias.length < 2) return;
+  const canonical = itemCanonical(item);
+  if (normalizedAlias === canonical) return;
+
+  const dup = await ctx.db
+    .query("shoppingListItemAliases")
+    .withIndex("by_list_and_normalized_alias", (q) =>
+      q.eq("listId", listId).eq("normalizedAlias", normalizedAlias)
+    )
+    .unique();
+  if (dup) {
+    if (dup.itemId === itemId) return;
+    return;
+  }
+
+  await ctx.db.insert("shoppingListItemAliases", {
+    listId,
+    itemId,
+    normalizedAlias,
+  });
+}
+
+async function deleteUsagesForItem(ctx: MutationCtx, itemId: Id<"shoppingListItems">) {
+  const rows = await ctx.db
+    .query("shoppingListItemUserUsage")
+    .withIndex("by_item", (q) => q.eq("itemId", itemId))
+    .collect();
+  for (const r of rows) {
+    await ctx.db.delete(r._id);
+  }
+}
+
+async function deleteAliasesForItem(ctx: MutationCtx, itemId: Id<"shoppingListItems">) {
+  const rows = await ctx.db
+    .query("shoppingListItemAliases")
+    .withIndex("by_item", (q) => q.eq("itemId", itemId))
+    .collect();
+  for (const r of rows) {
+    await ctx.db.delete(r._id);
+  }
 }
 
 export const listMine = query({
@@ -162,6 +245,22 @@ export const listItems = query({
   },
 });
 
+/** Alias map for the list (normalized string → item id). */
+export const listShoppingAliases = query({
+  args: { listId: v.id("shoppingLists") },
+  handler: async (ctx, args) => {
+    const userId = await requireAuthUserId(ctx);
+    const list = await ctx.db.get(args.listId);
+    if (!list) return [];
+    await assertCanAccessShoppingList(ctx, list, userId);
+
+    return await ctx.db
+      .query("shoppingListItemAliases")
+      .withIndex("by_list", (q) => q.eq("listId", args.listId))
+      .collect();
+  },
+});
+
 export const listSuggestions = query({
   args: {
     listId: v.id("shoppingLists"),
@@ -173,27 +272,89 @@ export const listSuggestions = query({
     if (!list) return [];
     await assertCanAccessShoppingList(ctx, list, userId);
 
-    const rows = await ctx.db
+    const needle = normalizeLabel(args.prefix ?? "");
+
+    const items = await ctx.db
+      .query("shoppingListItems")
+      .withIndex("by_list", (q) => q.eq("listId", args.listId))
+      .collect();
+    const itemById = new Map(items.map((i) => [i._id, i]));
+
+    const usageRows = await ctx.db
+      .query("shoppingListItemUserUsage")
+      .withIndex("by_list_and_user", (q) =>
+        q.eq("listId", args.listId).eq("userId", userId)
+      )
+      .collect();
+
+    usageRows.sort((a, b) => {
+      if (b.count !== a.count) return b.count - a.count;
+      return b.lastUsedAt - a.lastUsedAt;
+    });
+
+    type Row = {
+      rowKey: string;
+      displayLabel: string;
+      normalizedLabel: string;
+      reuseItemId?: Id<"shoppingListItems">;
+    };
+
+    const rows: Row[] = [];
+    const seenNormalized = new Set<string>();
+
+    for (const u of usageRows) {
+      const item = itemById.get(u.itemId);
+      if (!item) continue;
+      const normalizedLabel = itemCanonical(item);
+      if (seenNormalized.has(normalizedLabel)) continue;
+      seenNormalized.add(normalizedLabel);
+
+      if (
+        needle.length > 0 &&
+        !normalizedLabel.includes(needle) &&
+        !item.text.toLowerCase().includes(needle)
+      ) {
+        continue;
+      }
+
+      rows.push({
+        rowKey: `u:${item._id}`,
+        displayLabel: item.text,
+        normalizedLabel,
+        reuseItemId: item.completed ? undefined : item._id,
+      });
+    }
+
+    const suggestionDocs = await ctx.db
       .query("shoppingListSuggestions")
       .withIndex("by_list", (q) => q.eq("listId", args.listId))
       .collect();
 
-    const needle = normalizeLabel(args.prefix ?? "");
-    const filtered =
-      needle.length === 0
-        ? rows
-        : rows.filter(
-            (r) =>
-              r.normalizedLabel.includes(needle) ||
-              r.displayLabel.toLowerCase().includes(needle)
-          );
+    suggestionDocs.sort((a, b) => b.updatedAt - a.updatedAt);
 
-    filtered.sort((a, b) => b.updatedAt - a.updatedAt);
-    return filtered.slice(0, 50).map((r) => ({
-      _id: r._id,
-      displayLabel: r.displayLabel,
-      normalizedLabel: r.normalizedLabel,
-    }));
+    for (const s of suggestionDocs) {
+      if (seenNormalized.has(s.normalizedLabel)) continue;
+      if (
+        needle.length > 0 &&
+        !s.normalizedLabel.includes(needle) &&
+        !s.displayLabel.toLowerCase().includes(needle)
+      ) {
+        continue;
+      }
+      seenNormalized.add(s.normalizedLabel);
+
+      const activeSame = items.find(
+        (i) => !i.completed && itemCanonical(i) === s.normalizedLabel
+      );
+      rows.push({
+        rowKey: `s:${s._id}`,
+        displayLabel: s.displayLabel,
+        normalizedLabel: s.normalizedLabel,
+        reuseItemId: activeSame?._id,
+      });
+    }
+
+    return rows.slice(0, 50);
   },
 });
 
@@ -256,6 +417,22 @@ export const removeList = mutation({
     const list = await requireList(ctx, args.listId);
     await assertCanAccessShoppingList(ctx, list, userId);
 
+    const usages = await ctx.db
+      .query("shoppingListItemUserUsage")
+      .withIndex("by_list", (q) => q.eq("listId", args.listId))
+      .collect();
+    for (const u of usages) {
+      await ctx.db.delete(u._id);
+    }
+
+    const aliases = await ctx.db
+      .query("shoppingListItemAliases")
+      .withIndex("by_list", (q) => q.eq("listId", args.listId))
+      .collect();
+    for (const a of aliases) {
+      await ctx.db.delete(a._id);
+    }
+
     const items = await ctx.db
       .query("shoppingListItems")
       .withIndex("by_list", (q) => q.eq("listId", args.listId))
@@ -292,7 +469,7 @@ async function upsertSuggestion(
   displayLabel: string
 ) {
   const normalizedLabel = normalizeLabel(displayLabel);
-  if (!normalizedLabel) return;
+  if (normalizedLabel.length < 2) return;
 
   const existing = await ctx.db
     .query("shoppingListSuggestions")
@@ -317,6 +494,29 @@ async function upsertSuggestion(
   }
 }
 
+export const reuseShoppingItem = mutation({
+  args: {
+    itemId: v.id("shoppingListItems"),
+    typedText: v.string(),
+  },
+  handler: async (ctx, args) => {
+    const userId = await requireAuthUserId(ctx);
+    const item = await ctx.db.get(args.itemId);
+    if (!item) throw new Error("Item not found");
+    if (item.completed) throw new Error("Item is completed");
+    const list = await requireList(ctx, item.listId);
+    await assertCanAccessShoppingList(ctx, list, userId);
+
+    const typed = args.typedText.trim();
+    if (!typed) throw new Error("Text required");
+
+    await incrementItemUsage(ctx, userId, item.listId, item._id);
+    await tryInsertAlias(ctx, item.listId, item._id, typed);
+    await upsertSuggestion(ctx, item.listId, typed);
+    return null;
+  },
+});
+
 export const addItem = mutation({
   args: { listId: v.id("shoppingLists"), text: v.string() },
   handler: async (ctx, args) => {
@@ -327,13 +527,17 @@ export const addItem = mutation({
     const text = args.text.trim();
     if (!text) throw new Error("Item text required");
 
+    const canonicalName = normalizeLabel(text);
+
     const sortOrder = await nextItemSortOrder(ctx, args.listId);
     const id = await ctx.db.insert("shoppingListItems", {
       listId: args.listId,
       text,
+      canonicalName,
       completed: false,
       sortOrder,
     });
+    await incrementItemUsage(ctx, userId, args.listId, id);
     await upsertSuggestion(ctx, args.listId, text);
     return id;
   },
@@ -345,12 +549,14 @@ export const updateItemText = mutation({
     const userId = await requireAuthUserId(ctx);
     const item = await ctx.db.get(args.itemId);
     if (!item) throw new Error("Item not found");
+    if (item.completed) throw new Error("Completed items cannot be edited");
     const list = await requireList(ctx, item.listId);
     await assertCanAccessShoppingList(ctx, list, userId);
 
     const text = args.text.trim();
     if (!text) throw new Error("Item text required");
-    await ctx.db.patch(args.itemId, { text });
+    const canonicalName = normalizeLabel(text);
+    await ctx.db.patch(args.itemId, { text, canonicalName });
     await upsertSuggestion(ctx, item.listId, text);
   },
 });
@@ -363,6 +569,8 @@ export const deleteItem = mutation({
     if (!item) throw new Error("Item not found");
     const list = await requireList(ctx, item.listId);
     await assertCanAccessShoppingList(ctx, list, userId);
+    await deleteAliasesForItem(ctx, args.itemId);
+    await deleteUsagesForItem(ctx, args.itemId);
     await ctx.db.delete(args.itemId);
   },
 });
