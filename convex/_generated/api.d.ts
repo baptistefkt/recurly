@@ -22,6 +22,7 @@ import type * as notifications_reminderPreferences from "../notifications/remind
 import type * as notifications_taskReminders from "../notifications/taskReminders.js";
 import type * as recurrence from "../recurrence.js";
 import type * as router from "../router.js";
+import type * as shoppingLists from "../shoppingLists.js";
 import type * as stats from "../stats.js";
 import type * as tasks from "../tasks.js";
 import type * as teamAccess from "../teamAccess.js";
@@ -48,6 +49,7 @@ declare const fullApi: ApiFromModules<{
   "notifications/taskReminders": typeof notifications_taskReminders;
   recurrence: typeof recurrence;
   router: typeof router;
+  shoppingLists: typeof shoppingLists;
   stats: typeof stats;
   tasks: typeof tasks;
   teamAccess: typeof teamAccess;

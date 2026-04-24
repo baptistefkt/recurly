@@ -4,6 +4,7 @@ import { useConvexAuth } from "convex/react";
 import { Route, Switch, useLocation } from "wouter";
 import { PasswordResetForm } from "@/components/auth/PasswordResetForm";
 import { SignInForm } from "@/components/auth/SignInForm";
+import { ListsPage } from "@/pages/ListsPage";
 import { StatsPage } from "@/pages/StatsPage";
 import { Toaster } from "sonner";
 import { TaskDashboard } from "@/pages/TaskDashboard";
@@ -37,6 +38,9 @@ export default function App() {
         <Switch>
           <Route path="/stats">
             <StatsPage />
+          </Route>
+          <Route path="/lists">
+            <ListsPage />
           </Route>
           <Route path="/">
             <TaskDashboard />

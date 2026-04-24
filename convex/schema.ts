@@ -110,6 +110,64 @@ const applicationTables = {
       "reminderType",
       "dueAt",
     ]),
+
+  shoppingLists: defineTable({
+    /** Creator; personal lists are only visible to this user. */
+    userId: v.id("users"),
+    /** When set, any team member can access the list. */
+    teamId: v.optional(v.id("teams")),
+    title: v.string(),
+    createdAt: v.number(),
+    isArchived: v.optional(v.boolean()),
+  })
+    .index("by_user", ["userId"])
+    .index("by_team", ["teamId"])
+    .index("by_user_and_archived", ["userId", "isArchived"])
+    .index("by_team_and_archived", ["teamId", "isArchived"]),
+
+  shoppingListItems: defineTable({
+    listId: v.id("shoppingLists"),
+    /** Original label as entered or chosen (display). */
+    text: v.string(),
+    /** Normalized key for matching (trim + lowercase). */
+    canonicalName: v.optional(v.string()),
+    completed: v.boolean(),
+    /** Order among active items; preserved when completed so uncheck restores position. */
+    sortOrder: v.number(),
+    completedAt: v.optional(v.number()),
+  }).index("by_list", ["listId"]),
+
+  /** Maps a normalized input string to an existing list item (per list). */
+  shoppingListItemAliases: defineTable({
+    listId: v.id("shoppingLists"),
+    itemId: v.id("shoppingListItems"),
+    /** trim + lowercase */
+    normalizedAlias: v.string(),
+  })
+    .index("by_list", ["listId"])
+    .index("by_list_and_normalized_alias", ["listId", "normalizedAlias"])
+    .index("by_item", ["itemId"]),
+
+  /** Per-user reuse stats for list items (drives autocomplete ordering). */
+  shoppingListItemUserUsage: defineTable({
+    userId: v.id("users"),
+    listId: v.id("shoppingLists"),
+    itemId: v.id("shoppingListItems"),
+    count: v.number(),
+    lastUsedAt: v.number(),
+  })
+    .index("by_list_and_user", ["listId", "userId"])
+    .index("by_user_and_item", ["userId", "itemId"])
+    .index("by_list", ["listId"])
+    .index("by_item", ["itemId"]),
+
+  /** Distinct labels typed on a list, for combobox suggestions (per list). */
+  shoppingListSuggestions: defineTable({
+    listId: v.id("shoppingLists"),
+    normalizedLabel: v.string(),
+    displayLabel: v.string(),
+    updatedAt: v.number(),
+  }).index("by_list", ["listId"]).index("by_list_and_normalized", ["listId", "normalizedLabel"]),
 };
 
 export default defineSchema({

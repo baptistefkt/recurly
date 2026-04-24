@@ -87,3 +87,15 @@ export async function validateAssignees(
     if (!allowed.has(id)) throw new Error("Assignees must be team members");
   }
 }
+
+export async function assertCanAccessShoppingList(
+  ctx: AnyCtx,
+  list: Doc<"shoppingLists">,
+  userId: Id<"users">
+): Promise<void> {
+  if (list.teamId) {
+    await assertTeamMember(ctx, list.teamId, userId);
+    return;
+  }
+  if (list.userId !== userId) throw new Error("Not found");
+}
