@@ -70,6 +70,8 @@ const applicationTables = {
     teamId: v.optional(v.id("teams")),
     assigneeUserIds: v.optional(v.array(v.id("users"))),
     tags: v.optional(v.array(v.string())),
+    /** Up to 3 Convex file storage IDs (images only); see tasks mutations for validation. */
+    imageStorageIds: v.optional(v.array(v.id("_storage"))),
   })
     .index("by_user", ["userId"])
     .index("by_user_and_archived", ["userId", "isArchived"])

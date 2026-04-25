@@ -1,5 +1,5 @@
 import { v } from "convex/values";
-import { mutation, query, type QueryCtx } from "./_generated/server";
+import { mutation, query, type MutationCtx, type QueryCtx } from "./_generated/server";
 import { getAuthUserId } from "@convex-dev/auth/server";
 import type { Doc, Id } from "./_generated/dataModel";
 import { internal } from "./_generated/api";
@@ -36,6 +36,50 @@ const MAX_TAG_LEN = 40;
 const MAX_TAG_COUNT = 20;
 const MIN_TASK_POINTS = 1;
 const MAX_TASK_POINTS = 5;
+
+const MAX_TASK_IMAGES = 3;
+const MAX_TASK_IMAGE_BYTES = 5 * 1024 * 1024;
+
+const imageStorageIdsArg = v.optional(v.array(v.id("_storage")));
+
+type StorageDoc = {
+  _id: Id<"_storage">;
+  _creationTime: number;
+  contentType?: string;
+  sha256: string;
+  size: number;
+};
+
+async function normalizeTaskImageStorageIds(
+  ctx: MutationCtx,
+  ids: Id<"_storage">[] | undefined
+): Promise<Id<"_storage">[] | undefined> {
+  if (ids === undefined || ids.length === 0) return undefined;
+  if (ids.length > MAX_TASK_IMAGES) {
+    throw new Error(`At most ${MAX_TASK_IMAGES} images per task`);
+  }
+  if (new Set(ids).size !== ids.length) {
+    throw new Error("Duplicate image uploads");
+  }
+  for (const id of ids) {
+    const meta = (await ctx.db.system.get("_storage", id)) as StorageDoc | null;
+    if (!meta) {
+      throw new Error("Invalid or missing file upload");
+    }
+    const ct = meta.contentType ?? "";
+    if (!ct.startsWith("image/")) {
+      throw new Error(
+        "Each attachment must be an image (JPEG, PNG, WebP, GIF, HEIC, or HEIF)"
+      );
+    }
+    if (meta.size > MAX_TASK_IMAGE_BYTES) {
+      throw new Error(
+        `Each image must be at most ${MAX_TASK_IMAGE_BYTES / (1024 * 1024)} MB`
+      );
+    }
+  }
+  return ids;
+}
 
 function normalizeTags(input: string[] | undefined): string[] {
   if (!input?.length) return [];
@@ -352,7 +396,19 @@ export const get = query({
       })
     );
 
-    return enrichSingleTask(ctx, task, userById);
+    const enriched = await enrichSingleTask(ctx, task, userById);
+    const ids = task.imageStorageIds ?? [];
+    const imageUrls = await Promise.all(ids.map((id) => ctx.storage.getUrl(id)));
+    return { ...enriched, imageUrls };
+  },
+});
+
+export const generateTaskImageUploadUrl = mutation({
+  args: {},
+  handler: async (ctx) => {
+    const userId = await getAuthUserId(ctx);
+    if (!userId) throw new Error("Not authenticated");
+    return await ctx.storage.generateUploadUrl();
   },
 });
 
@@ -373,6 +429,7 @@ export const create = mutation({
     teamId: v.optional(v.id("teams")),
     assigneeUserIds: v.optional(v.array(v.id("users"))),
     tags: v.optional(v.array(v.string())),
+    imageStorageIds: imageStorageIdsArg,
   },
   handler: async (ctx, args) => {
     const userId = await getAuthUserId(ctx);
@@ -389,6 +446,7 @@ export const create = mutation({
     }
 
     const tags = normalizeTags(args.tags);
+    const imageStorageIds = await normalizeTaskImageStorageIds(ctx, args.imageStorageIds);
     const points = validateOptionalTaskPoints(args.points);
     const recurrenceStartAt = args.recurrenceStartAt ?? undefined;
     const recurrenceEndAt = args.recurrenceEndAt ?? undefined;
@@ -437,6 +495,9 @@ export const create = mutation({
         teamId: args.teamId,
         assigneeUserIds: args.assigneeUserIds,
         ...(tags.length > 0 ? { tags } : {}),
+        ...(imageStorageIds !== undefined && imageStorageIds.length > 0
+          ? { imageStorageIds }
+          : {}),
       });
       await notifyAssignees(taskId, args.title.trim());
       return taskId;
@@ -467,6 +528,9 @@ export const create = mutation({
       teamId: args.teamId,
       assigneeUserIds: args.assigneeUserIds,
       ...(tags.length > 0 ? { tags } : {}),
+      ...(imageStorageIds !== undefined && imageStorageIds.length > 0
+        ? { imageStorageIds }
+        : {}),
     });
     await notifyAssignees(taskId, args.title.trim());
     return taskId;
@@ -491,6 +555,7 @@ export const update = mutation({
     teamId: v.optional(v.id("teams")),
     assigneeUserIds: v.optional(v.array(v.id("users"))),
     tags: v.optional(v.array(v.string())),
+    imageStorageIds: imageStorageIdsArg,
   },
   handler: async (ctx, args) => {
     const userId = await getAuthUserId(ctx);
@@ -597,6 +662,23 @@ export const update = mutation({
       finalPatch.assigneeUserIds = rest.assigneeUserIds;
     }
 
+    if (rest.imageStorageIds !== undefined) {
+      const nextIds = await normalizeTaskImageStorageIds(ctx, rest.imageStorageIds);
+      const prev = task.imageStorageIds ?? [];
+      const kept = nextIds ?? [];
+      const keptSet = new Set(kept);
+      for (const id of prev) {
+        if (!keptSet.has(id)) {
+          await ctx.storage.delete(id);
+        }
+      }
+      if (nextIds === undefined || nextIds.length === 0) {
+        finalPatch.imageStorageIds = undefined;
+      } else {
+        finalPatch.imageStorageIds = nextIds;
+      }
+    }
+
     if (Object.keys(finalPatch).length === 0) return;
 
     const nextVisibility = finalPatch.visibility ?? effectiveVisibility(task);
@@ -674,6 +756,9 @@ export const remove = mutation({
       .collect();
     for (const c of completions) {
       await ctx.db.delete(c._id);
+    }
+    for (const id of task.imageStorageIds ?? []) {
+      await ctx.storage.delete(id);
     }
     await ctx.db.delete(args.taskId);
   },

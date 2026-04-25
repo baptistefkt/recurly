@@ -1,13 +1,24 @@
 import { useMutation, useQuery } from "convex/react";
-import { useEffect, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type KeyboardEvent as ReactKeyboardEvent,
+} from "react";
 import {
   AlertTriangle,
   Archive,
   BarChart3,
   CalendarClock,
+  ChevronLeft,
+  ChevronRight,
   Clock,
+  ExternalLink,
   FileText,
   History,
+  Image as ImageIcon,
   Pencil,
   Repeat,
   RotateCcw,
@@ -15,6 +26,7 @@ import {
   Tag,
   Trash2,
   UserPlus,
+  X,
 } from "lucide-react";
 import { api } from "../../../convex/_generated/api";
 import { Id } from "../../../convex/_generated/dataModel";
@@ -60,6 +72,19 @@ function formatDateTime(ts: number): string {
   });
 }
 
+function stepTaskPhotoIndex(
+  current: number | null,
+  direction: "prev" | "next",
+  length: number
+): number {
+  if (length <= 0) return 0;
+  const i = current === null ? 0 : current;
+  if (direction === "prev") {
+    return i <= 0 ? length - 1 : i - 1;
+  }
+  return i >= length - 1 ? 0 : i + 1;
+}
+
 /** Notion-style row: icon + label (muted) | value. No card chrome. */
 function PropertyRow({
   icon: Icon,
@@ -83,7 +108,7 @@ function PropertyRow({
         <Icon className="mt-0.5 h-4 w-4 shrink-0 opacity-80" />
         <span className="leading-snug">{label}</span>
       </div>
-      <div className="min-w-0 text-sm leading-relaxed text-foreground max-sm:pl-[1.625rem]">
+      <div className="min-w-0 text-sm leading-relaxed text-foreground max-sm:pl-6.5">
         {children}
       </div>
     </div>
@@ -108,16 +133,53 @@ export function TaskDetailModal({
   const [completing, setCompleting] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
+  const lightboxContainerRef = useRef<HTMLDivElement>(null);
   const cachedTask = taskSnapshotCache.get(taskId) as
     | Exclude<typeof task, undefined | null>
     | undefined;
   const taskForRender = task === undefined ? cachedTask ?? undefined : task;
+
+  const galleryUrls = useMemo(() => {
+    if (taskForRender === undefined || taskForRender === null) return [];
+    return (taskForRender.imageUrls ?? []).filter(
+      (u): u is string => typeof u === "string" && u.length > 0
+    );
+  }, [taskForRender]);
+
+  const onLightboxKeyDownCapture = useCallback(
+    (e: ReactKeyboardEvent) => {
+      const len = galleryUrls.length;
+      if (len <= 1) return;
+      if (e.key === "ArrowLeft") {
+        e.preventDefault();
+        setLightboxIndex((i) => stepTaskPhotoIndex(i, "prev", len));
+      } else if (e.key === "ArrowRight") {
+        e.preventDefault();
+        setLightboxIndex((i) => stepTaskPhotoIndex(i, "next", len));
+      }
+    },
+    [galleryUrls.length]
+  );
 
   useEffect(() => {
     if (task !== undefined && task !== null) {
       taskSnapshotCache.set(taskId, task);
     }
   }, [task, taskId]);
+
+  useEffect(() => {
+    setLightboxIndex(null);
+  }, [taskId]);
+
+  useEffect(() => {
+    if (lightboxIndex === null) return;
+    if (lightboxIndex >= galleryUrls.length) {
+      setLightboxIndex(null);
+      return;
+    }
+    lightboxContainerRef.current?.focus({ preventScroll: true });
+  }, [lightboxIndex, galleryUrls.length]);
 
   const now = Date.now();
   const isOverdue =
@@ -151,7 +213,24 @@ export function TaskDetailModal({
   return (
     <>
       <Dialog open onOpenChange={(open) => { if (!open) onClose(); }}>
-        <DialogContent className="sm:max-w-3xl">
+        <DialogContent
+          className="sm:max-w-3xl"
+          onPointerDownOutside={(e) => {
+            if (lightboxIndex !== null) e.preventDefault();
+          }}
+          onInteractOutside={(e) => {
+            if (lightboxIndex !== null) e.preventDefault();
+          }}
+          onFocusOutside={(e) => {
+            if (lightboxIndex !== null) e.preventDefault();
+          }}
+          onEscapeKeyDown={(e) => {
+            if (lightboxIndex !== null) {
+              e.preventDefault();
+              setLightboxIndex(null);
+            }
+          }}
+        >
           {taskForRender === undefined ? (
             <div className="flex min-h-[200px] flex-col items-center justify-center gap-3 py-8">
               <div className="h-8 w-8 animate-spin rounded-full border-2 border-primary border-t-transparent" />
@@ -194,6 +273,41 @@ export function TaskDetailModal({
                       </div>
                     </div>
                   </div>
+
+                  {galleryUrls.length > 0 && (
+                    <div className="my-4">
+                      <div className="rounded-3xl bg-muted/50 px-4 py-3.5 dark:bg-muted/35">
+                        <div className="flex gap-3">
+                          <ImageIcon
+                            className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground opacity-80"
+                            aria-hidden
+                          />
+                          <div className="min-w-0 flex-1 space-y-2">
+                            <p className="font-heading text-sm font-medium text-foreground">
+                              Images
+                            </p>
+                            <div className="flex gap-2 overflow-x-auto pb-1 pt-0.5">
+                              {galleryUrls.map((url, i) => (
+                                <button
+                                  key={`${url}-${i}`}
+                                  type="button"
+                                  className="relative h-24 w-24 shrink-0 overflow-hidden rounded-lg border border-border/80 bg-background outline-none ring-offset-background transition hover:opacity-95 focus-visible:ring-2 focus-visible:ring-ring cursor-pointer"
+                                  onClick={() => setLightboxIndex(i)}
+                                  aria-label={`View image ${i + 1} full size`}
+                                >
+                                  <img
+                                    src={url}
+                                    alt=""
+                                    className="h-full w-full object-cover"
+                                  />
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  )}
 
                   <TaskDueCountdown
                     nextDueAt={task.nextDueAt}
@@ -393,6 +507,90 @@ export function TaskDetailModal({
               );
             })()
           )}
+
+          {galleryUrls.length > 0 &&
+            lightboxIndex !== null &&
+            galleryUrls[lightboxIndex] && (
+              <div
+                ref={lightboxContainerRef}
+                tabIndex={-1}
+                role="region"
+                aria-label={`Image ${lightboxIndex + 1} of ${galleryUrls.length}. Use arrow keys for previous and next.`}
+                className="fixed inset-0 z-300 flex items-center justify-center bg-black/92 p-4 outline-none"
+                onClick={() => setLightboxIndex(null)}
+                onKeyDownCapture={onLightboxKeyDownCapture}
+              >
+                <div className="absolute right-3 top-3 z-1 flex flex-wrap items-center justify-end gap-2">
+                  <a
+                    href={galleryUrls[lightboxIndex]}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-1.5 rounded-md bg-white/10 px-2.5 py-1.5 text-xs font-medium text-white hover:bg-white/20"
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    <ExternalLink className="h-3.5 w-3.5 shrink-0" aria-hidden />
+                    Open in new tab
+                  </a>
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    size="icon"
+                    className="h-9 w-9 shrink-0 rounded-full"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setLightboxIndex(null);
+                    }}
+                    aria-label="Close full size image"
+                  >
+                    <X className="h-4 w-4" />
+                  </Button>
+                </div>
+                {galleryUrls.length > 1 && (
+                  <>
+                    <div className="absolute top-1/2 left-2 z-1 -translate-y-1/2">
+                      <Button
+                        type="button"
+                        variant="secondary"
+                        size="icon"
+                        className="h-10 w-10 rounded-full"
+                        aria-label="Previous image"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setLightboxIndex((i) =>
+                            stepTaskPhotoIndex(i, "prev", galleryUrls.length)
+                          );
+                        }}
+                      >
+                        <ChevronLeft className="h-5 w-5" />
+                      </Button>
+                    </div>
+                    <div className="absolute top-1/2 right-2 z-1 -translate-y-1/2">
+                      <Button
+                        type="button"
+                        variant="secondary"
+                        size="icon"
+                        className="h-10 w-10 rounded-full"
+                        aria-label="Next image"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setLightboxIndex((i) =>
+                            stepTaskPhotoIndex(i, "next", galleryUrls.length)
+                          );
+                        }}
+                      >
+                        <ChevronRight className="h-5 w-5" />
+                      </Button>
+                    </div>
+                  </>
+                )}
+                <img
+                  src={galleryUrls[lightboxIndex]}
+                  alt={`Image ${lightboxIndex + 1} of ${galleryUrls.length}`}
+                  className="max-h-[70vh] max-w-full object-contain"
+                  onClick={(e) => e.stopPropagation()}
+                />
+              </div>
+            )}
         </DialogContent>
       </Dialog>
 

@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { useMutation, useQuery } from "convex/react";
 import { api } from "../../../convex/_generated/api";
 import { Id } from "../../../convex/_generated/dataModel";
@@ -28,6 +28,22 @@ import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { ChevronDown, ChevronUp, X } from "lucide-react";
 import { tagColorClass } from "@/lib/tagColors";
+import {
+  MAX_TASK_IMAGES,
+  TASK_IMAGE_ACCEPT,
+  uploadTaskImageFiles,
+  validateTaskImageFile,
+} from "@/lib/taskImageConstants";
+
+type PhotoDraft =
+  | { type: "stored"; id: Id<"_storage">; previewUrl: string }
+  | { type: "pending"; file: File; previewUrl: string };
+
+function revokePendingPreviewUrls(photos: PhotoDraft[]) {
+  for (const p of photos) {
+    if (p.type === "pending") URL.revokeObjectURL(p.previewUrl);
+  }
+}
 
 const MAX_TAG_LEN = 40;
 const MAX_TAG_COUNT = 20;
@@ -88,6 +104,7 @@ export function TaskModal({
   const createTask = useMutation(api.tasks.create);
   const updateTask = useMutation(api.tasks.update);
   const removeTask = useMutation(api.tasks.remove);
+  const generateTaskImageUploadUrl = useMutation(api.tasks.generateTaskImageUploadUrl);
 
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
@@ -108,6 +125,10 @@ export function TaskModal({
   const [assigneeUserIds, setAssigneeUserIds] = useState<Id<"users">[]>([]);
   const [tags, setTags] = useState<string[]>([]);
   const [tagDraft, setTagDraft] = useState("");
+  const [photosOpen, setPhotosOpen] = useState(false);
+  const [photos, setPhotos] = useState<PhotoDraft[]>([]);
+  const photosSyncedForTaskRef = useRef<string | null>(null);
+  const photoFileInputRef = useRef<HTMLInputElement>(null);
 
   const tagSuggestions = useMemo(() => {
     if (!distinctTagLabels?.length) return [];
@@ -174,7 +195,37 @@ export function TaskModal({
     setScheduleWindowOpen(false);
     setTagsOpen(false);
     setPointsOpen(false);
+    setPhotosOpen(false);
   }, [existingTask, listMode, activeTeamId]);
+
+  useEffect(() => {
+    if (!taskId) {
+      photosSyncedForTaskRef.current = null;
+      setPhotos((prev) => {
+        revokePendingPreviewUrls(prev);
+        return [];
+      });
+      return;
+    }
+    if (existingTask === undefined) return;
+    if (existingTask === null) {
+      photosSyncedForTaskRef.current = null;
+      return;
+    }
+    const sid = existingTask._id;
+    if (photosSyncedForTaskRef.current === sid) return;
+    photosSyncedForTaskRef.current = sid;
+    setPhotos((prev) => {
+      revokePendingPreviewUrls(prev);
+      const ids = existingTask.imageStorageIds ?? [];
+      const urls = existingTask.imageUrls ?? [];
+      return ids.map((id, i) => ({
+        type: "stored" as const,
+        id,
+        previewUrl: urls[i] ?? "",
+      }));
+    });
+  }, [taskId, existingTask]);
 
   const isEdit = !!taskId;
   const showSharing =
@@ -195,6 +246,42 @@ export function TaskModal({
       }
       return [...prev, day].sort((a, b) => a - b);
     });
+  }
+
+  function removePhotoAt(index: number) {
+    setPhotos((prev) => {
+      const p = prev[index];
+      if (!p) return prev;
+      if (p.type === "pending") revokePendingPreviewUrls([p]);
+      return prev.filter((_, i) => i !== index);
+    });
+  }
+
+  function onPickFiles(e: React.ChangeEvent<HTMLInputElement>) {
+    const picked = e.target.files ? Array.from(e.target.files) : [];
+    if (!picked.length) return;
+    const remaining = MAX_TASK_IMAGES - photos.length;
+    if (remaining <= 0) {
+      toast.error(`You can attach up to ${MAX_TASK_IMAGES} images.`);
+      return;
+    }
+    const toAdd: PhotoDraft[] = [];
+    for (let i = 0; i < picked.length && toAdd.length < remaining; i++) {
+      const file = picked[i]!;
+      const err = validateTaskImageFile(file);
+      if (err) {
+        toast.error(`${file.name}: ${err}`);
+        continue;
+      }
+      toAdd.push({
+        type: "pending",
+        file,
+        previewUrl: URL.createObjectURL(file),
+      });
+    }
+    if (toAdd.length > 0) {
+      setPhotos((prev) => [...prev, ...toAdd]);
+    }
   }
 
   async function handleSubmit(e: React.FormEvent) {
@@ -281,6 +368,28 @@ export function TaskModal({
           ? assigneeUserIds
           : undefined;
 
+      const pendingFiles = photos
+        .filter((p): p is Extract<PhotoDraft, { type: "pending" }> => p.type === "pending")
+        .map((p) => p.file);
+      const storedIds = photos
+        .filter((p): p is Extract<PhotoDraft, { type: "stored" }> => p.type === "stored")
+        .map((p) => p.id);
+      for (const f of pendingFiles) {
+        const err = validateTaskImageFile(f);
+        if (err) {
+          toast.error(`${f.name}: ${err}`);
+          setSaving(false);
+          return;
+        }
+      }
+      let uploadedIds: Id<"_storage">[] = [];
+      if (pendingFiles.length > 0) {
+        uploadedIds = await uploadTaskImageFiles(pendingFiles, () =>
+          generateTaskImageUploadUrl()
+        );
+      }
+      const imageStorageIds = [...storedIds, ...uploadedIds].slice(0, MAX_TASK_IMAGES);
+
       if (isEdit && taskId) {
         await updateTask({
           taskId,
@@ -294,6 +403,7 @@ export function TaskModal({
           assigneeUserIds:
             visibility === "team" ? assigneeUserIds : undefined,
           tags,
+          imageStorageIds,
         });
         toast.success("Task updated");
       } else {
@@ -312,9 +422,11 @@ export function TaskModal({
           teamId: visibility === "team" ? activeTeamId! : undefined,
           assigneeUserIds: assignees,
           tags,
+          ...(imageStorageIds.length > 0 ? { imageStorageIds } : {}),
         });
         toast.success("Task created");
       }
+      revokePendingPreviewUrls(photos);
       onClose();
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Something went wrong");
@@ -647,6 +759,79 @@ export function TaskModal({
                         >
                           {t}
                         </Button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+
+            <div className="space-y-3">
+              <Button
+                type="button"
+                variant="link"
+                className="h-auto w-full justify-between px-0"
+                onClick={() => setPhotosOpen((prev) => !prev)}
+                aria-expanded={photosOpen}
+              >
+                <span className="text-sm font-medium">
+                  Images <span className="text-muted-foreground font-normal">(optional)</span>
+                </span>
+                <span>
+                  {photosOpen ? (
+                    <ChevronUp className="h-4 w-4" />
+                  ) : (
+                    <ChevronDown className="h-4 w-4" />
+                  )}
+                </span>
+              </Button>
+              {photosOpen && (
+                <div className="space-y-2">
+                  <p className="text-xs text-muted-foreground">
+                    Up to {MAX_TASK_IMAGES} images · max 5 MB each · most image formats
+                  </p>
+                  <input
+                    ref={photoFileInputRef}
+                    type="file"
+                    accept={TASK_IMAGE_ACCEPT}
+                    multiple
+                    disabled={photos.length >= MAX_TASK_IMAGES}
+                    onClick={() => {
+                      const el = photoFileInputRef.current;
+                      if (el) el.value = "";
+                    }}
+                    onChange={onPickFiles}
+                    className="block w-full text-sm file:mr-3 file:rounded-md file:border file:border-border file:bg-background file:px-3 file:py-1.5 file:text-sm file:font-medium"
+                  />
+                  {photos.length > 0 && (
+                    <div className="flex flex-wrap gap-2">
+                      {photos.map((p, index) => (
+                        <div
+                          key={`${p.type}-${index}-${p.type === "stored" ? p.id : p.previewUrl}`}
+                          className="relative h-20 w-20 shrink-0 overflow-hidden rounded-md border border-border bg-muted"
+                        >
+                          {p.previewUrl ? (
+                            <img
+                              src={p.previewUrl}
+                              alt=""
+                              className="h-full w-full object-cover"
+                            />
+                          ) : (
+                            <div className="flex h-full w-full items-center justify-center text-[10px] text-muted-foreground">
+                              Image
+                            </div>
+                          )}
+                          <Button
+                            type="button"
+                            variant="secondary"
+                            size="icon-xs"
+                            className="absolute right-0.5 top-0.5 h-6 w-6 rounded-full shadow-sm"
+                            onClick={() => removePhotoAt(index)}
+                            aria-label="Remove image"
+                          >
+                            <X className="h-3 w-3" />
+                          </Button>
+                        </div>
                       ))}
                     </div>
                   )}
