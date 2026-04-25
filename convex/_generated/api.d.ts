@@ -11,6 +11,7 @@
 import type * as auth from "../auth.js";
 import type * as completions from "../completions.js";
 import type * as crons from "../crons.js";
+import type * as displayNameLimits from "../displayNameLimits.js";
 import type * as email_ResendOTPPasswordReset from "../email/ResendOTPPasswordReset.js";
 import type * as email_email from "../email/email.js";
 import type * as http from "../http.js";
@@ -27,6 +28,7 @@ import type * as stats from "../stats.js";
 import type * as tasks from "../tasks.js";
 import type * as teamAccess from "../teamAccess.js";
 import type * as teams from "../teams.js";
+import type * as users from "../users.js";
 
 import type {
   ApiFromModules,
@@ -38,6 +40,7 @@ declare const fullApi: ApiFromModules<{
   auth: typeof auth;
   completions: typeof completions;
   crons: typeof crons;
+  displayNameLimits: typeof displayNameLimits;
   "email/ResendOTPPasswordReset": typeof email_ResendOTPPasswordReset;
   "email/email": typeof email_email;
   http: typeof http;
@@ -54,6 +57,7 @@ declare const fullApi: ApiFromModules<{
   tasks: typeof tasks;
   teamAccess: typeof teamAccess;
   teams: typeof teams;
+  users: typeof users;
 }>;
 
 /**

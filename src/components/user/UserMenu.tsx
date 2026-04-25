@@ -1,5 +1,5 @@
 import { useAuthActions } from "@convex-dev/auth/react";
-import { BarChart3, Bell, ListChecks, LogOut, Plus, Users } from "lucide-react";
+import { BarChart3, Bell, ListChecks, LogOut, Plus, Settings, Users } from "lucide-react";
 import { Avatar, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { ColoredAvatarFallback } from "@/components/shared/ColoredAvatarFallback";
@@ -26,6 +26,7 @@ export function UserMenu({
   onAddTask,
   onNewTeam,
   onReminderSettings,
+  onOpenAccountSettings,
   onOpenStats,
   onOpenLists,
   className,
@@ -34,6 +35,7 @@ export function UserMenu({
   onAddTask: () => void;
   onNewTeam: () => void;
   onReminderSettings: () => void;
+  onOpenAccountSettings: () => void;
   onOpenStats: () => void;
   onOpenLists: () => void;
   className?: string;
@@ -72,6 +74,10 @@ export function UserMenu({
         <DropdownMenuItem onClick={onNewTeam}>
           <Users />
           New team
+        </DropdownMenuItem>
+        <DropdownMenuItem onClick={onOpenAccountSettings}>
+          <Settings />
+          Account settings
         </DropdownMenuItem>
         <DropdownMenuItem onClick={onReminderSettings}>
           <Bell />

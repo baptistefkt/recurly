@@ -157,6 +157,7 @@ export function StatsPage() {
             onAddTask={() => navigate("/")}
             onNewTeam={() => navigate("/")}
             onReminderSettings={() => navigate("/")}
+            onOpenAccountSettings={() => navigate("/settings")}
             onOpenStats={() => navigate("/stats")}
             onOpenLists={() => navigate("/lists")}
           />

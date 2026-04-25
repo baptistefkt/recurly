@@ -223,6 +223,7 @@ export function TaskDashboard() {
             }}
             onNewTeam={() => setCreateTeamOpen(true)}
             onReminderSettings={() => setShowReminderSettings(true)}
+            onOpenAccountSettings={() => navigate("/settings")}
             onOpenStats={() => {
               const dashboardQuery = search
                 ? search.startsWith("?")

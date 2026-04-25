@@ -198,7 +198,11 @@ export function ListsPage() {
 
   return (
     <div className="flex min-h-screen flex-col bg-muted/40">
-      <ShoppingListsPageHeader user={user ?? undefined} navigate={navigate} />
+      <ShoppingListsPageHeader
+        user={user ?? undefined}
+        navigate={navigate}
+        onOpenAccountSettings={() => navigate("/settings")}
+      />
 
       <div className="mx-auto w-full max-w-6xl flex-1 px-4 py-8 sm:py-10">
         <ShoppingListsHero

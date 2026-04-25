@@ -5,6 +5,7 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { DISPLAY_NAME_MAX_LEN } from "../../../convex/displayNameLimits";
 
 export function SignInForm({
   onForgotPassword,
@@ -24,17 +25,19 @@ export function SignInForm({
           setSubmitting(true);
           const formData = new FormData(e.target as HTMLFormElement);
           formData.set("flow", flow);
-          void signIn("password", formData).catch((error) => {
-            let toastTitle = "";
-            if (error.message.includes("Invalid password")) {
-              toastTitle = "Invalid password. Please try again.";
+          void signIn("password", formData).catch((error: Error) => {
+            const msg = error.message ?? "";
+            if (msg.includes("Invalid password")) {
+              toast.error("Invalid password. Please try again.");
+            } else if (msg.includes("Display name")) {
+              toast.error(msg);
             } else {
-              toastTitle =
+              toast.error(
                 flow === "signIn"
                   ? "Could not sign in, did you mean to sign up?"
-                  : "Could not sign up, did you mean to sign in?";
+                  : "Could not sign up, did you mean to sign in?"
+              );
             }
-            toast.error(toastTitle);
             setSubmitting(false);
           });
         }}
@@ -50,6 +53,22 @@ export function SignInForm({
             autoComplete="email"
           />
         </div>
+        {flow === "signUp" ? (
+          <div className="space-y-2">
+            <Label htmlFor="signup-display-name">Display name (optional)</Label>
+            <Input
+              id="signup-display-name"
+              type="text"
+              name="name"
+              maxLength={DISPLAY_NAME_MAX_LEN}
+              placeholder="How you appear in the app"
+              autoComplete="name"
+            />
+            <p className="text-xs text-muted-foreground">
+              If set, this is shown instead of your email to you and your teammates.
+            </p>
+          </div>
+        ) : null}
         <div className="space-y-2">
           <Label htmlFor="signin-password">Password</Label>
           <Input

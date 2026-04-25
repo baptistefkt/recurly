@@ -13,9 +13,11 @@ type UserFields = {
 export function ShoppingListsPageHeader({
   user,
   navigate,
+  onOpenAccountSettings,
 }: {
   user: UserFields | null | undefined;
   navigate: (to: string) => void;
+  onOpenAccountSettings: () => void;
 }) {
   return (
     <header className="sticky top-0 z-30 border-b bg-background">
@@ -46,6 +48,7 @@ export function ShoppingListsPageHeader({
           onAddTask={() => navigate("/")}
           onNewTeam={() => navigate("/")}
           onReminderSettings={() => navigate("/")}
+          onOpenAccountSettings={onOpenAccountSettings}
           onOpenStats={() => navigate("/stats")}
           onOpenLists={() => navigate("/lists")}
         />
