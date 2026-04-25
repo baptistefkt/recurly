@@ -49,8 +49,8 @@ export function ShoppingListPreviewCard({
       onClick={onOpen}
       onKeyDown={handleCardKeyDown}
       className={cn(
-        "relative group flex flex-col rounded-4xl border border-border/60 bg-background/90 p-5 text-left shadow-sm ring-1 ring-transparent transition-all",
-        "hover:border-primary/50 hover:bg-background hover:shadow-md hover:ring-primary/50 hover:cursor-pointer",
+        "relative group flex flex-col rounded-4xl border border-border/60 bg-background/90 p-5 text-left shadow-sm ring-1 ring-transparent transition-all duration-250 cursor-pointer",
+        "hover:border-primary/50 hover:bg-background hover:shadow-md hover:ring-primary/50",
         "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
       )}
     >
@@ -103,7 +103,7 @@ export function ShoppingListPreviewCard({
       ) : null}
       <div
         className={cn(
-          "absolute right-4 bottom-4 flex gap-2 transition-opacity duration-150",
+          "absolute right-4 bottom-4 flex gap-2 transition-opacity duration-250",
           "pointer-events-none opacity-0 group-hover:pointer-events-auto group-hover:opacity-100",
           "group-focus-within:pointer-events-auto group-focus-within:opacity-100"
         )}
