@@ -139,6 +139,23 @@ export function ListsPage() {
     if (!open) setDeleteListTargetId(null);
   }, []);
 
+  const focusOrDismissAddInput = useCallback(() => {
+    requestAnimationFrame(() => {
+      const input = document.getElementById("shopping-list-add-item") as
+        | HTMLInputElement
+        | null;
+      if (!input) return;
+      const isDesktopPrecisionPointer =
+        typeof window !== "undefined" &&
+        window.matchMedia("(hover: hover) and (pointer: fine)").matches;
+      if (isDesktopPrecisionPointer) {
+        input.focus();
+      } else {
+        input.blur();
+      }
+    });
+  }, []);
+
   const onAmbiguousAcceptReuse = useCallback(async () => {
     if (!listIdParam || !ambiguous) return;
     try {
@@ -148,13 +165,18 @@ export function ListsPage() {
       });
       setAmbiguous(null);
       setAddDraft("");
-      requestAnimationFrame(() => {
-        document.getElementById("shopping-list-add-item")?.focus();
-      });
+      focusOrDismissAddInput();
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Failed");
     }
-  }, [listIdParam, ambiguous, reuseShoppingItem, setAmbiguous, setAddDraft]);
+  }, [
+    listIdParam,
+    ambiguous,
+    reuseShoppingItem,
+    setAmbiguous,
+    setAddDraft,
+    focusOrDismissAddInput,
+  ]);
 
   const onAmbiguousKeepOriginal = useCallback(async () => {
     if (!listIdParam || !ambiguous) return;
@@ -162,13 +184,18 @@ export function ListsPage() {
       await addItem({ listId: listIdParam, text: ambiguous.typed });
       setAmbiguous(null);
       setAddDraft("");
-      requestAnimationFrame(() => {
-        document.getElementById("shopping-list-add-item")?.focus();
-      });
+      focusOrDismissAddInput();
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Failed");
     }
-  }, [listIdParam, ambiguous, addItem, setAmbiguous, setAddDraft]);
+  }, [
+    listIdParam,
+    ambiguous,
+    addItem,
+    setAmbiguous,
+    setAddDraft,
+    focusOrDismissAddInput,
+  ]);
 
   const onToggleItemComplete = useCallback(
     async (itemId: Id<"shoppingListItems">) => {

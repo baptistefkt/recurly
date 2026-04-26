@@ -49,6 +49,8 @@ const MAX_TAG_LEN = 40;
 const MAX_TAG_COUNT = 20;
 const MIN_TASK_POINTS = 1;
 const MAX_TASK_POINTS = 5;
+const MIN_CUSTOM_RECURRENCE_INTERVAL = 1;
+const MAX_CUSTOM_RECURRENCE_INTERVAL = 999;
 
 type RecurrenceType =
   | "daily"
@@ -78,6 +80,15 @@ function defaultDueAtMs() {
   d.setMinutes(0, 0, 0);
   d.setHours(d.getHours() + 1);
   return d.getTime();
+}
+
+function normalizeCustomRecurrenceIntervalInput(input: string): number {
+  const parsed = Number.parseInt(input, 10);
+  if (!Number.isFinite(parsed)) return MIN_CUSTOM_RECURRENCE_INTERVAL;
+  return Math.min(
+    MAX_CUSTOM_RECURRENCE_INTERVAL,
+    Math.max(MIN_CUSTOM_RECURRENCE_INTERVAL, parsed)
+  );
 }
 
 function mergeTagIntoList(list: string[], raw: string): string[] {
@@ -110,7 +121,7 @@ export function TaskModal({
   const [description, setDescription] = useState("");
   const [points, setPoints] = useState<number | undefined>(undefined);
   const [recurrenceType, setRecurrenceType] = useState<RecurrenceType>("weekly");
-  const [recurrenceInterval, setRecurrenceInterval] = useState(1);
+  const [recurrenceIntervalInput, setRecurrenceIntervalInput] = useState("1");
   const [recurrenceUnit, setRecurrenceUnit] = useState<RecurrenceUnit>("weeks");
   const [recurrenceDaysOfWeek, setRecurrenceDaysOfWeek] = useState<number[]>([1]);
   const [dueAtMs, setDueAtMs] = useState(defaultDueAtMs);
@@ -162,7 +173,7 @@ export function TaskModal({
       setDescription(existingTask.description ?? "");
       setPoints(existingTask.points);
       setRecurrenceType(existingTask.recurrenceType as RecurrenceType);
-      setRecurrenceInterval(existingTask.recurrenceInterval ?? 1);
+      setRecurrenceIntervalInput(String(existingTask.recurrenceInterval ?? 1));
       setRecurrenceUnit((existingTask.recurrenceUnit as RecurrenceUnit) ?? "weeks");
       const weekdays = existingTask.recurrenceDaysOfWeek ?? [];
       if (weekdays.length > 0) {
@@ -186,6 +197,7 @@ export function TaskModal({
     } else {
       setShareWithTeam(listMode === "team" && !!activeTeamId);
       setPoints(undefined);
+      setRecurrenceIntervalInput("1");
       setAssigneeUserIds([]);
       setRecurrenceDaysOfWeek([1]);
       setDueAtMs(defaultDueAtMs());
@@ -315,6 +327,9 @@ export function TaskModal({
         return;
       }
 
+      const recurrenceInterval = normalizeCustomRecurrenceIntervalInput(
+        recurrenceIntervalInput
+      );
       const recurrenceFields =
         recurrenceType === "once"
           ? {
@@ -594,11 +609,16 @@ export function TaskModal({
                   <div className="w-16 shrink-0 [&_input]:text-center">
                     <Input
                       type="number"
-                      min={1}
-                      max={999}
+                      min={MIN_CUSTOM_RECURRENCE_INTERVAL}
+                      max={MAX_CUSTOM_RECURRENCE_INTERVAL}
                       className="h-8 text-sm"
-                      value={recurrenceInterval}
-                      onChange={(e) => setRecurrenceInterval(Math.max(1, Number(e.target.value)))}
+                      value={recurrenceIntervalInput}
+                      onChange={(e) => setRecurrenceIntervalInput(e.target.value)}
+                      onBlur={() =>
+                        setRecurrenceIntervalInput((prev) =>
+                          String(normalizeCustomRecurrenceIntervalInput(prev))
+                        )
+                      }
                     />
                   </div>
                   <div className="flex flex-wrap items-center gap-1.5">

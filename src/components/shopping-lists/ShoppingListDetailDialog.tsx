@@ -1,4 +1,4 @@
-import { useCallback, useRef } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import autoAnimate from "@formkit/auto-animate";
 import type { ShoppingAutocompleteRow } from "@/components/shopping/ShoppingItemCombobox";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
@@ -89,11 +89,30 @@ export function ShoppingListDetailDialog({
   onDeleteItem: (itemId: Id<"shoppingListItems">) => Promise<void>;
 }) {
   const animatedItemsListRef = useRef<WeakSet<HTMLElement>>(new WeakSet());
+  const [keyboardInsetPx, setKeyboardInsetPx] = useState(0);
 
   const attachItemsListAnimation = useCallback((element: HTMLElement | null) => {
     if (!element || animatedItemsListRef.current.has(element)) return;
     autoAnimate(element, { duration: 200, easing: "ease-out" });
     animatedItemsListRef.current.add(element);
+  }, []);
+
+  useEffect(() => {
+    const vv = window.visualViewport;
+    if (!vv) return;
+
+    const updateInset = () => {
+      const inset = Math.max(0, window.innerHeight - (vv.height + vv.offsetTop));
+      setKeyboardInsetPx(inset > 0 ? inset : 0);
+    };
+
+    updateInset();
+    vv.addEventListener("resize", updateInset);
+    vv.addEventListener("scroll", updateInset);
+    return () => {
+      vv.removeEventListener("resize", updateInset);
+      vv.removeEventListener("scroll", updateInset);
+    };
   }, []);
 
   return (
@@ -122,7 +141,13 @@ export function ShoppingListDetailDialog({
               onRequestDelete={onRequestDelete}
             />
 
-            <div className="min-h-0 min-w-0 flex-1 overflow-y-auto overscroll-contain px-5 pb-4 sm:px-6">
+            <div
+              className="min-h-0 min-w-0 flex-1 overflow-y-auto overscroll-contain px-5 pb-4 sm:px-6"
+              style={{
+                paddingBottom:
+                  keyboardInsetPx > 0 ? `calc(1rem + ${keyboardInsetPx}px)` : undefined,
+              }}
+            >
               <div className="min-w-0 space-y-4 pb-4 pt-4">
                 <ShoppingListAddItemBlock
                   listId={listIdParam}

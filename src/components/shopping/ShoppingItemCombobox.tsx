@@ -12,6 +12,22 @@ export type ShoppingAutocompleteRow = {
   reuseItemId?: Id<"shoppingListItems">;
 };
 
+function resolveRowForPressedLabel(
+  label: string,
+  highlighted: ShoppingAutocompleteRow | undefined,
+  allItems: ShoppingAutocompleteRow[]
+): ShoppingAutocompleteRow | undefined {
+  const t = label.trim();
+  if (!t) return undefined;
+  const matches = allItems.filter((r) => r.displayLabel.trim() === t);
+  if (matches.length === 0) return undefined;
+  if (matches.length === 1) return matches[0];
+  if (highlighted && matches.some((m) => m.rowKey === highlighted.rowKey)) {
+    return highlighted;
+  }
+  return matches[0];
+}
+
 export function ShoppingItemCombobox({
   disabled,
   inputValue,
@@ -36,6 +52,18 @@ export function ShoppingItemCombobox({
   const highlightedRef = React.useRef<ShoppingAutocompleteRow | undefined>(
     undefined
   );
+  const lastPickRef = React.useRef<{ key: string; at: number } | null>(null);
+
+  const dedupedPick = React.useCallback(
+    (row: ShoppingAutocompleteRow) => {
+      const now = Date.now();
+      const prev = lastPickRef.current;
+      if (prev && prev.key === row.rowKey && now - prev.at < 450) return;
+      lastPickRef.current = { key: row.rowKey, at: now };
+      void onPickSuggestion(row);
+    },
+    [onPickSuggestion]
+  );
 
   return (
     <Autocomplete.Root<ShoppingAutocompleteRow>
@@ -48,8 +76,13 @@ export function ShoppingItemCombobox({
       }}
       onValueChange={(nextValue, details) => {
         if (details.reason === "item-press") {
-          const row = highlightedRef.current;
-          if (row) void onPickSuggestion(row);
+          const label = typeof nextValue === "string" ? nextValue : "";
+          const row = resolveRowForPressedLabel(
+            label,
+            highlightedRef.current,
+            items
+          );
+          if (row) dedupedPick(row);
           return;
         }
         onInputValueChange(nextValue);
@@ -88,7 +121,13 @@ export function ShoppingItemCombobox({
                 <Autocomplete.Item
                   key={item.rowKey}
                   value={item}
-                  className="relative flex w-full cursor-default items-center rounded-2xl px-3 py-2 text-sm outline-none select-none data-highlighted:bg-accent data-highlighted:text-accent-foreground"
+                  className="relative flex w-full cursor-default items-center rounded-2xl px-3 py-2.5 text-[15px] outline-none select-none data-highlighted:bg-accent data-highlighted:text-accent-foreground sm:py-2 sm:text-sm"
+                  onPointerUp={(e) => {
+                    if (disabled) return;
+                    if (e.pointerType !== "touch" && e.pointerType !== "pen") return;
+                    if (e.button !== 0) return;
+                    dedupedPick(item);
+                  }}
                 >
                   {item.displayLabel}
                 </Autocomplete.Item>

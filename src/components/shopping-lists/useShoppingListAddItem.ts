@@ -66,6 +66,23 @@ export function useShoppingListAddItem({
     });
   }, []);
 
+  const focusOrDismissAddInput = useCallback(() => {
+    requestAnimationFrame(() => {
+      const input = document.getElementById("shopping-list-add-item") as
+        | HTMLInputElement
+        | null;
+      if (!input) return;
+      const isDesktopPrecisionPointer =
+        typeof window !== "undefined" &&
+        window.matchMedia("(hover: hover) and (pointer: fine)").matches;
+      if (isDesktopPrecisionPointer) {
+        input.focus();
+      } else {
+        input.blur();
+      }
+    });
+  }, []);
+
   const handleAddItem = useCallback(
     async (text: string) => {
       if (!listIdParam) return;
@@ -86,7 +103,7 @@ export function useShoppingListAddItem({
           try {
             await reuseShoppingItem({ itemId: aliasItemId, typedText: trimmed });
             setAddDraft("");
-            focusAddInput();
+            focusOrDismissAddInput();
           } catch (err) {
             toast.error(err instanceof Error ? err.message : "Could not add item");
           }
@@ -106,7 +123,7 @@ export function useShoppingListAddItem({
           try {
             await reuseShoppingItem({ itemId: best.item._id, typedText: trimmed });
             setAddDraft("");
-            focusAddInput();
+            focusOrDismissAddInput();
           } catch (err) {
             toast.error(err instanceof Error ? err.message : "Could not add item");
           }
@@ -125,7 +142,7 @@ export function useShoppingListAddItem({
       try {
         await addItem({ listId: listIdParam, text: trimmed });
         setAddDraft("");
-        focusAddInput();
+        focusOrDismissAddInput();
       } catch (err) {
         toast.error(err instanceof Error ? err.message : "Could not add item");
       }
@@ -147,12 +164,12 @@ export function useShoppingListAddItem({
           await addItem({ listId: listIdParam, text: row.displayLabel });
         }
         setAddDraft("");
-        focusAddInput();
+        focusOrDismissAddInput();
       } catch (err) {
         toast.error(err instanceof Error ? err.message : "Could not add item");
       }
     },
-    [listIdParam, addItem, reuseShoppingItem, focusAddInput]
+    [listIdParam, addItem, reuseShoppingItem, focusOrDismissAddInput]
   );
 
   return {

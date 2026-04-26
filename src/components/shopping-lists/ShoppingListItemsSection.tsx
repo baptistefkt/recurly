@@ -27,8 +27,8 @@ export function ShoppingListItemsSection({
   onDelete: (itemId: Id<"shoppingListItems">) => Promise<void>;
 }) {
   return (
-    <div ref={attachItemsListAnimation} className="min-w-0 border-t border-border/50">
-      <ul className="flex min-w-0 flex-col">
+    <div className="min-w-0 border-t border-border/50">
+      <ul ref={attachItemsListAnimation} className="flex min-w-0 flex-col">
         {items?.length === 0 ? (
           <li className="border-b border-border/50 py-8 text-center text-sm text-muted-foreground">
             No items yet.

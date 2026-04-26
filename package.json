@@ -6,7 +6,7 @@
   "type": "module",
   "scripts": {
     "dev": "npm-run-all --parallel dev:frontend dev:backend",
-    "dev:frontend": "vite --open",
+    "dev:frontend": "vite --open --host",
     "dev:backend": "convex dev",
     "build": "vite build",
     "generate:icons": "node scripts/generate-pwa-icons.mjs",
