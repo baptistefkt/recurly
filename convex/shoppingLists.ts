@@ -23,6 +23,10 @@ async function requireList(ctx: DbCtx, listId: Id<"shoppingLists">) {
   return list;
 }
 
+async function touchList(ctx: MutationCtx, listId: Id<"shoppingLists">) {
+  await ctx.db.patch(listId, { updatedAt: Date.now() });
+}
+
 async function mergedShoppingListsForUser(
   ctx: QueryCtx,
   userId: Id<"users">,
@@ -77,7 +81,9 @@ async function mergedShoppingListsForUser(
     seen.add(id);
     merged.push(list);
   }
-  merged.sort((a, b) => b.createdAt - a.createdAt);
+  merged.sort(
+    (a, b) => (b.updatedAt ?? b.createdAt) - (a.updatedAt ?? a.createdAt)
+  );
   return merged;
 }
 
@@ -365,6 +371,7 @@ export const createList = mutation({
   },
   handler: async (ctx, args) => {
     const userId = await requireAuthUserId(ctx);
+    const now = Date.now();
     const title = args.title.trim();
     if (!title) throw new Error("Title required");
 
@@ -374,7 +381,8 @@ export const createList = mutation({
         userId,
         teamId: args.teamId,
         title,
-        createdAt: Date.now(),
+        createdAt: now,
+        updatedAt: now,
         isArchived: false,
       });
     }
@@ -382,7 +390,8 @@ export const createList = mutation({
     return await ctx.db.insert("shoppingLists", {
       userId,
       title,
-      createdAt: Date.now(),
+      createdAt: now,
+      updatedAt: now,
       isArchived: false,
     });
   },
@@ -396,7 +405,7 @@ export const updateListTitle = mutation({
     await assertCanAccessShoppingList(ctx, list, userId);
     const title = args.title.trim();
     if (!title) throw new Error("Title required");
-    await ctx.db.patch(args.listId, { title });
+    await ctx.db.patch(args.listId, { title, updatedAt: Date.now() });
   },
 });
 
@@ -406,7 +415,7 @@ export const setListArchived = mutation({
     const userId = await requireAuthUserId(ctx);
     const list = await requireList(ctx, args.listId);
     await assertCanAccessShoppingList(ctx, list, userId);
-    await ctx.db.patch(args.listId, { isArchived: args.isArchived });
+    await ctx.db.patch(args.listId, { isArchived: args.isArchived, updatedAt: Date.now() });
   },
 });
 
@@ -537,6 +546,7 @@ export const addItem = mutation({
       completed: false,
       sortOrder,
     });
+    await touchList(ctx, args.listId);
     await incrementItemUsage(ctx, userId, args.listId, id);
     await upsertSuggestion(ctx, args.listId, text);
     return id;
@@ -557,6 +567,7 @@ export const updateItemText = mutation({
     if (!text) throw new Error("Item text required");
     const canonicalName = normalizeLabel(text);
     await ctx.db.patch(args.itemId, { text, canonicalName });
+    await touchList(ctx, item.listId);
     await upsertSuggestion(ctx, item.listId, text);
   },
 });
@@ -572,6 +583,7 @@ export const deleteItem = mutation({
     await deleteAliasesForItem(ctx, args.itemId);
     await deleteUsagesForItem(ctx, args.itemId);
     await ctx.db.delete(args.itemId);
+    await touchList(ctx, item.listId);
   },
 });
 
@@ -595,5 +607,6 @@ export const toggleItemComplete = mutation({
         completedAt: Date.now(),
       });
     }
+    await touchList(ctx, item.listId);
   },
 });

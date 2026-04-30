@@ -120,6 +120,8 @@ const applicationTables = {
     teamId: v.optional(v.id("teams")),
     title: v.string(),
     createdAt: v.number(),
+    /** Last content/title/archive change timestamp. */
+    updatedAt: v.optional(v.number()),
     isArchived: v.optional(v.boolean()),
   })
     .index("by_user", ["userId"])

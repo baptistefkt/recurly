@@ -32,7 +32,15 @@ export function ShoppingListPreviewCard({
   onToggleArchive: () => void | Promise<void>;
   onRequestDelete: () => void;
 }) {
-  const more = Math.max(0, totalItemCount - previewItems.length);
+  function getMoreCount(maxVisibleItems: number) {
+    const visibleItems = Math.min(previewItems.length, maxVisibleItems);
+    return Math.max(0, totalItemCount - visibleItems);
+  }
+
+  const moreBase = getMoreCount(5);
+  const moreSm = getMoreCount(8);
+  const moreLg = getMoreCount(10);
+  const moreXl = getMoreCount(previewItems.length);
 
   function handleCardKeyDown(e: KeyboardEvent<HTMLDivElement>) {
     if (e.key === "Enter" || e.key === " ") {
@@ -98,8 +106,23 @@ export function ShoppingListPreviewCard({
           ))
         )}
       </ul>
-      {more > 0 ? (
-        <p className="mt-3 text-xs font-medium text-muted-foreground">+{more} more</p>
+      {moreBase > 0 ? (
+        <p className="mt-3 text-xs font-medium text-muted-foreground sm:hidden">+{moreBase} more</p>
+      ) : null}
+      {moreSm > 0 ? (
+        <p className="mt-3 hidden text-xs font-medium text-muted-foreground sm:block lg:hidden">
+          +{moreSm} more
+        </p>
+      ) : null}
+      {moreLg > 0 ? (
+        <p className="mt-3 hidden text-xs font-medium text-muted-foreground lg:block xl:hidden">
+          +{moreLg} more
+        </p>
+      ) : null}
+      {moreXl > 0 ? (
+        <p className="mt-3 hidden text-xs font-medium text-muted-foreground xl:block">
+          +{moreXl} more
+        </p>
       ) : null}
       <div
         className={cn(
