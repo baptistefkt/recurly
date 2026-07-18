@@ -87,7 +87,7 @@ export function ShoppingListPreviewCard({
     <div
       role="button"
       tabIndex={0}
-      aria-label={`Open shopping list ${list.title}`}
+      aria-label={`Open list ${list.title}`}
       onClick={onOpen}
       onKeyDown={handleCardKeyDown}
       className={cn(

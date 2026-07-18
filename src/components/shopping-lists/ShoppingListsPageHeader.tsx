@@ -41,7 +41,7 @@ export function ShoppingListsPageHeader({
             Tasks
           </Button>
           <Separator orientation="vertical" className="h-6" />
-          <span className="truncate font-semibold text-foreground">Shopping lists</span>
+          <span className="truncate font-semibold text-foreground">Lists</span>
         </div>
         <UserMenu
           user={user ?? undefined}

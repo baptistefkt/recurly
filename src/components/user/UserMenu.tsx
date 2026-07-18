@@ -89,7 +89,7 @@ export function UserMenu({
         </DropdownMenuItem>
         <DropdownMenuItem onClick={onOpenLists}>
           <ListChecks />
-          Shopping lists
+          Lists
         </DropdownMenuItem>
         <DropdownMenuSeparator />
         <DropdownMenuItem onClick={() => void signOut()}>

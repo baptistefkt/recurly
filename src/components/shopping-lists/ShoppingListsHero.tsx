@@ -18,7 +18,7 @@ export function ShoppingListsHero({
           Your lists
         </h1>
         <p className="max-w-xl text-sm text-muted-foreground sm:text-base">
-          Quick shopping lists with suggestions and real-time sync for teams. Open a card to edit.
+          Checklists with suggestions and real-time sync for teams. Open a card to edit.
           Everything saves automatically.
         </p>
       </div>
@@ -30,7 +30,7 @@ export function ShoppingListsHero({
           onClick={onNewList}
         >
           <Plus className="h-5 w-5" />
-          New shopping list
+          New list
         </Button>
         <label className="flex cursor-pointer items-center gap-2 text-sm text-muted-foreground sm:justify-end">
           <Checkbox

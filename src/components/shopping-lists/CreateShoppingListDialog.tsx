@@ -62,7 +62,7 @@ export function CreateShoppingListDialog({
       <DialogContent className="sm:max-w-md">
         <form onSubmit={(e) => void handleSubmit(e)}>
           <DialogHeader>
-            <DialogTitle>New shopping list</DialogTitle>
+            <DialogTitle>New list</DialogTitle>
           </DialogHeader>
           <div className="grid gap-4 py-2">
             <div className="grid gap-2">
@@ -71,7 +71,7 @@ export function CreateShoppingListDialog({
                 id="list-title"
                 value={newTitle}
                 onChange={(e) => setNewTitle(e.target.value)}
-                placeholder="Groceries"
+                placeholder="Weekend errands"
                 autoFocus
               />
             </div>

@@ -34,7 +34,7 @@ export function ShoppingListPreviewsSection({
           <div className="space-y-1">
             <p className="text-base font-medium text-foreground">No lists yet</p>
             <p className="max-w-sm text-sm text-muted-foreground">
-              Create a list for groceries, errands, or shared team shopping. You can pick personal
+              Create a list for groceries, packing, chores, or anything else. You can pick personal
               or a team when you create it.
             </p>
           </div>
