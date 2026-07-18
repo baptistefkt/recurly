@@ -20,6 +20,7 @@ import type * as notifications_pushNotifications from "../notifications/pushNoti
 import type * as notifications_pushReminderJobs from "../notifications/pushReminderJobs.js";
 import type * as notifications_pushTokens from "../notifications/pushTokens.js";
 import type * as notifications_reminderPreferences from "../notifications/reminderPreferences.js";
+import type * as notifications_reminderTiming from "../notifications/reminderTiming.js";
 import type * as notifications_taskReminders from "../notifications/taskReminders.js";
 import type * as recurrence from "../recurrence.js";
 import type * as router from "../router.js";
@@ -49,6 +50,7 @@ declare const fullApi: ApiFromModules<{
   "notifications/pushReminderJobs": typeof notifications_pushReminderJobs;
   "notifications/pushTokens": typeof notifications_pushTokens;
   "notifications/reminderPreferences": typeof notifications_reminderPreferences;
+  "notifications/reminderTiming": typeof notifications_reminderTiming;
   "notifications/taskReminders": typeof notifications_taskReminders;
   recurrence: typeof recurrence;
   router: typeof router;

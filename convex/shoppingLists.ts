@@ -409,6 +409,41 @@ export const updateListTitle = mutation({
   },
 });
 
+export const updateListScope = mutation({
+  args: {
+    listId: v.id("shoppingLists"),
+    teamId: v.union(v.id("teams"), v.null()),
+  },
+  handler: async (ctx, args) => {
+    const userId = await requireAuthUserId(ctx);
+    const list = await requireList(ctx, args.listId);
+    await assertCanAccessShoppingList(ctx, list, userId);
+    if (list.userId !== userId) {
+      throw new Error("Only the list creator can change scope");
+    }
+
+    const currentTeamId = list.teamId ?? null;
+    if (currentTeamId === args.teamId) {
+      return { ok: true as const };
+    }
+
+    if (args.teamId !== null) {
+      await assertTeamMember(ctx, args.teamId, userId);
+      await ctx.db.patch(args.listId, {
+        teamId: args.teamId,
+        updatedAt: Date.now(),
+      });
+    } else {
+      await ctx.db.patch(args.listId, {
+        teamId: undefined,
+        updatedAt: Date.now(),
+      });
+    }
+
+    return { ok: true as const };
+  },
+});
+
 export const setListArchived = mutation({
   args: { listId: v.id("shoppingLists"), isArchived: v.boolean() },
   handler: async (ctx, args) => {

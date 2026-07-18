@@ -17,7 +17,11 @@ import type { ShoppingListItemRowModel } from "./ShoppingListItemRow";
 type SelectedListSummary = {
   title: string;
   isArchived?: boolean;
+  userId: Id<"users">;
+  teamId?: Id<"teams">;
 };
+
+type MembershipRow = { teamId: Id<"teams">; teamName: string };
 
 export function ShoppingListDetailDialog({
   open,
@@ -36,6 +40,9 @@ export function ShoppingListDetailDialog({
   handleSaveTitle,
   onToggleArchived,
   onRequestDelete,
+  memberships,
+  canChangeScope,
+  onScopeChange,
   addDraft,
   setAddDraftClearAmbiguous,
   suggestionRows,
@@ -70,6 +77,9 @@ export function ShoppingListDetailDialog({
   handleSaveTitle: () => Promise<void>;
   onToggleArchived: () => Promise<void>;
   onRequestDelete: () => void;
+  memberships: MembershipRow[] | undefined;
+  canChangeScope: boolean;
+  onScopeChange: (teamId: Id<"teams"> | null) => Promise<void>;
   addDraft: string;
   setAddDraftClearAmbiguous: (v: string) => void;
   suggestionRows: ShoppingAutocompleteRow[];
@@ -139,6 +149,10 @@ export function ShoppingListDetailDialog({
               isArchived={selectedList.isArchived ?? false}
               onToggleArchived={onToggleArchived}
               onRequestDelete={onRequestDelete}
+              teamId={selectedList.teamId}
+              memberships={memberships}
+              canChangeScope={canChangeScope}
+              onScopeChange={onScopeChange}
             />
 
             <div

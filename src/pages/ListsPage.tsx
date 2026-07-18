@@ -47,6 +47,7 @@ export function ListsPage() {
   );
 
   const updateListTitle = useMutation(api.shoppingLists.updateListTitle);
+  const updateListScope = useMutation(api.shoppingLists.updateListScope);
   const setListArchived = useMutation(api.shoppingLists.setListArchived);
   const addItem = useMutation(api.shoppingLists.addItem);
   const reuseShoppingItem = useMutation(api.shoppingLists.reuseShoppingItem);
@@ -116,6 +117,20 @@ export function ListsPage() {
       toast.error(err instanceof Error ? err.message : "Failed");
     }
   }, [listIdParam, selectedList, setListArchived]);
+
+  const handleScopeChange = useCallback(
+    async (teamId: Id<"teams"> | null) => {
+      if (!listIdParam) return;
+      try {
+        await updateListScope({ listId: listIdParam, teamId });
+        toast.success(teamId ? "List shared with team" : "List set to personal");
+      } catch (err) {
+        toast.error(err instanceof Error ? err.message : "Failed");
+        throw err;
+      }
+    },
+    [listIdParam, updateListScope]
+  );
 
   const handlePreviewToggleArchive = useCallback(
     async (listId: Id<"shoppingLists">, isArchived: boolean) => {
@@ -222,6 +237,9 @@ export function ListsPage() {
   const detailOpen = Boolean(listIdParam);
   const listDetailLoading = Boolean(listIdParam && selectedList === undefined);
   const listDetailMissing = Boolean(listIdParam && selectedList === null);
+  const canChangeScope = Boolean(
+    selectedList && user && selectedList.userId === user._id
+  );
 
   return (
     <div className="flex min-h-screen flex-col bg-muted/40">
@@ -271,6 +289,9 @@ export function ListsPage() {
         onRequestDelete={() => {
           if (listIdParam) openDeleteListAlert(listIdParam);
         }}
+        memberships={memberships}
+        canChangeScope={canChangeScope}
+        onScopeChange={handleScopeChange}
         addDraft={addDraft}
         setAddDraftClearAmbiguous={setAddDraftClearAmbiguous}
         suggestionRows={suggestionRows}
