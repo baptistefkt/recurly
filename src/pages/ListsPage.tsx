@@ -13,6 +13,7 @@ import { useShoppingListItemEdit } from "@/components/shopping-lists/useShopping
 import { useShoppingListSuggestionsWithStale } from "@/components/shopping-lists/useShoppingListSuggestionsWithStale";
 import { useShoppingListTitleEdit } from "@/components/shopping-lists/useShoppingListTitleEdit";
 import { useShoppingListUrlState } from "@/components/shopping-lists/useShoppingListUrlState";
+import { optimisticToggleItemComplete } from "@/lib/shoppingListOptimistic";
 import { api } from "../../convex/_generated/api";
 import type { Id } from "../../convex/_generated/dataModel";
 import { toast } from "sonner";
@@ -53,7 +54,11 @@ export function ListsPage() {
   const reuseShoppingItem = useMutation(api.shoppingLists.reuseShoppingItem);
   const updateItemText = useMutation(api.shoppingLists.updateItemText);
   const deleteItem = useMutation(api.shoppingLists.deleteItem);
-  const toggleItemComplete = useMutation(api.shoppingLists.toggleItemComplete);
+  const toggleItemCompleteMutation = useMutation(api.shoppingLists.toggleItemComplete);
+  const toggleItemComplete = useMemo(
+    () => toggleItemCompleteMutation.withOptimisticUpdate(optimisticToggleItemComplete),
+    [toggleItemCompleteMutation]
+  );
 
   const {
     addDraft,

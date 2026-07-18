@@ -509,6 +509,19 @@ async function nextItemSortOrder(ctx: MutationCtx, listId: Id<"shoppingLists">):
   return max + 1;
 }
 
+/** Move a completed item back to the end of the active list. */
+async function reactivateItem(
+  ctx: MutationCtx,
+  item: Doc<"shoppingListItems">
+): Promise<void> {
+  const sortOrder = await nextItemSortOrder(ctx, item.listId);
+  await ctx.db.patch(item._id, {
+    completed: false,
+    completedAt: undefined,
+    sortOrder,
+  });
+}
+
 async function upsertSuggestion(
   ctx: MutationCtx,
   listId: Id<"shoppingLists">,
@@ -556,10 +569,7 @@ export const reuseShoppingItem = mutation({
     if (!typed) throw new Error("Text required");
 
     if (item.completed) {
-      await ctx.db.patch(args.itemId, {
-        completed: false,
-        completedAt: undefined,
-      });
+      await reactivateItem(ctx, item);
       await touchList(ctx, item.listId);
     }
 
@@ -592,10 +602,7 @@ export const addItem = mutation({
 
     if (existing) {
       if (existing.completed) {
-        await ctx.db.patch(existing._id, {
-          completed: false,
-          completedAt: undefined,
-        });
+        await reactivateItem(ctx, existing);
       }
       await touchList(ctx, args.listId);
       await incrementItemUsage(ctx, userId, args.listId, existing._id);
@@ -663,10 +670,7 @@ export const toggleItemComplete = mutation({
     await assertCanAccessShoppingList(ctx, list, userId);
 
     if (item.completed) {
-      await ctx.db.patch(args.itemId, {
-        completed: false,
-        completedAt: undefined,
-      });
+      await reactivateItem(ctx, item);
     } else {
       await ctx.db.patch(args.itemId, {
         completed: true,
