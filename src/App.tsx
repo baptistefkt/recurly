@@ -1,5 +1,5 @@
 import { Authenticated, Unauthenticated } from "convex/react";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { useConvexAuth } from "convex/react";
 import { Route, Switch, useLocation } from "wouter";
 import { PasswordResetForm } from "@/components/auth/PasswordResetForm";
@@ -9,6 +9,12 @@ import { ListsPage } from "@/pages/ListsPage";
 import { StatsPage } from "@/pages/StatsPage";
 import { Toaster } from "sonner";
 import { TaskDashboard } from "@/pages/TaskDashboard";
+import {
+  getLastMainView,
+  hasTasksDeepLink,
+  pathForMainView,
+  setLastMainView,
+} from "@/lib/lastMainView";
 import {
   Card,
   CardContent,
@@ -26,7 +32,7 @@ export default function App() {
     if (isLoading) return;
 
     if (wasAuthenticatedRef.current === false && isAuthenticated) {
-      navigate("/");
+      navigate(pathForMainView(getLastMainView()));
     }
 
     wasAuthenticatedRef.current = isAuthenticated;
@@ -36,23 +42,7 @@ export default function App() {
     <div className="min-h-screen flex flex-col bg-muted/40">
       <Toaster position="top-center" />
       <Authenticated>
-        <Switch>
-          <Route path="/stats">
-            <StatsPage />
-          </Route>
-          <Route path="/lists">
-            <ListsPage />
-          </Route>
-          <Route path="/settings">
-            <AccountSettingsPage />
-          </Route>
-          <Route path="/">
-            <TaskDashboard />
-          </Route>
-          <Route>
-            <TaskDashboard />
-          </Route>
-        </Switch>
+        <AuthenticatedApp />
       </Authenticated>
       <Unauthenticated>
         <Switch>
@@ -65,6 +55,59 @@ export default function App() {
         </Switch>
       </Unauthenticated>
     </div>
+  );
+}
+
+function AuthenticatedApp() {
+  const [location, navigate] = useLocation();
+  const [ready, setReady] = useState(false);
+  const didRestoreRef = useRef(false);
+
+  useLayoutEffect(() => {
+    if (!didRestoreRef.current) {
+      didRestoreRef.current = true;
+      if (
+        location === "/" &&
+        !hasTasksDeepLink(window.location.search) &&
+        getLastMainView() === "lists"
+      ) {
+        navigate("/lists", { replace: true });
+      }
+      setReady(true);
+    }
+  }, [location, navigate]);
+
+  useEffect(() => {
+    if (!ready) return;
+    if (location === "/") {
+      setLastMainView("tasks");
+    } else if (location === "/lists") {
+      setLastMainView("lists");
+    }
+  }, [location, ready]);
+
+  if (!ready) {
+    return null;
+  }
+
+  return (
+    <Switch>
+      <Route path="/stats">
+        <StatsPage />
+      </Route>
+      <Route path="/lists">
+        <ListsPage />
+      </Route>
+      <Route path="/settings">
+        <AccountSettingsPage />
+      </Route>
+      <Route path="/">
+        <TaskDashboard />
+      </Route>
+      <Route>
+        <TaskDashboard />
+      </Route>
+    </Switch>
   );
 }
 
