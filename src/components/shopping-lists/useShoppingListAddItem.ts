@@ -4,7 +4,7 @@ import {
   AMBIGUOUS_MAX_SCORE,
   AMBIGUOUS_MIN_SCORE,
   AUTO_REUSE_MAX_SCORE,
-  bestIncompleteFuseMatch,
+  bestFuseMatch,
   normalizeShoppingInput,
 } from "@/lib/shoppingItemMatch";
 import { toast } from "sonner";
@@ -60,12 +60,6 @@ export function useShoppingListAddItem({
     setAddDraft(v);
   }, []);
 
-  const focusAddInput = useCallback(() => {
-    requestAnimationFrame(() => {
-      document.getElementById("shopping-list-add-item")?.focus();
-    });
-  }, []);
-
   const focusOrDismissAddInput = useCallback(() => {
     requestAnimationFrame(() => {
       const input = document.getElementById("shopping-list-add-item") as
@@ -99,7 +93,7 @@ export function useShoppingListAddItem({
       const aliasItemId = aliasToItemId.get(normalized);
       if (aliasItemId) {
         const target = items.find((i) => i._id === aliasItemId);
-        if (target && !target.completed) {
+        if (target) {
           try {
             await reuseShoppingItem({ itemId: aliasItemId, typedText: trimmed });
             setAddDraft("");
@@ -117,7 +111,7 @@ export function useShoppingListAddItem({
         canonicalName: i.canonicalName ?? "",
         completed: i.completed,
       }));
-      const best = bestIncompleteFuseMatch(trimmed, pool);
+      const best = bestFuseMatch(trimmed, pool);
       if (best) {
         if (best.score < AUTO_REUSE_MAX_SCORE) {
           try {
@@ -147,7 +141,15 @@ export function useShoppingListAddItem({
         toast.error(err instanceof Error ? err.message : "Could not add item");
       }
     },
-    [listIdParam, items, aliases, aliasToItemId, addItem, reuseShoppingItem, focusAddInput]
+    [
+      listIdParam,
+      items,
+      aliases,
+      aliasToItemId,
+      addItem,
+      reuseShoppingItem,
+      focusOrDismissAddInput,
+    ]
   );
 
   const addItemFromSuggestion = useCallback(

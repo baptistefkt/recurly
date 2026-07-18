@@ -22,14 +22,10 @@ function canonicalOf(item: ShoppingItemForMatch): string {
   return item.canonicalName?.trim() || normalizeShoppingInput(item.text);
 }
 
-export function bestIncompleteFuseMatch(
+function bestFuseMatchInPool(
   rawInput: string,
-  items: ShoppingItemForMatch[]
+  pool: ShoppingItemForMatch[]
 ): { item: ShoppingItemForMatch; score: number } | null {
-  const trimmed = rawInput.trim();
-  if (!trimmed) return null;
-
-  const pool = items.filter((i) => !i.completed);
   if (pool.length === 0) return null;
 
   const docs = pool.map((i) => ({
@@ -44,8 +40,34 @@ export function bestIncompleteFuseMatch(
     ignoreLocation: true,
   });
 
-  const results = fuse.search(trimmed);
+  const results = fuse.search(rawInput.trim());
   const first = results[0];
   if (!first || first.score === undefined) return null;
   return { item: first.item, score: first.score };
 }
+
+/**
+ * Prefer an incomplete match when one exists; otherwise match completed items
+ * so re-adding a checked-off item reuses it instead of creating a duplicate.
+ */
+export function bestFuseMatch(
+  rawInput: string,
+  items: ShoppingItemForMatch[]
+): { item: ShoppingItemForMatch; score: number } | null {
+  const trimmed = rawInput.trim();
+  if (!trimmed) return null;
+
+  const incomplete = bestFuseMatchInPool(
+    trimmed,
+    items.filter((i) => !i.completed)
+  );
+  if (incomplete) return incomplete;
+
+  return bestFuseMatchInPool(
+    trimmed,
+    items.filter((i) => i.completed)
+  );
+}
+
+/** @deprecated Prefer {@link bestFuseMatch}. */
+export const bestIncompleteFuseMatch = bestFuseMatch;

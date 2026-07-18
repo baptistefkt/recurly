@@ -32,9 +32,12 @@ export function ShoppingListPreviewCard({
   onToggleArchive: () => void | Promise<void>;
   onRequestDelete: () => void;
 }) {
+  const active = previewItems.filter((item) => !item.completed);
+  const completed = previewItems.filter((item) => item.completed);
+
   function getMoreCount(maxVisibleItems: number) {
-    const visibleItems = Math.min(previewItems.length, maxVisibleItems);
-    return Math.max(0, totalItemCount - visibleItems);
+    const visibleActive = Math.min(active.length, maxVisibleItems);
+    return Math.max(0, totalItemCount - visibleActive);
   }
 
   const moreBase = getMoreCount(5);
@@ -48,6 +51,37 @@ export function ShoppingListPreviewCard({
       onOpen();
     }
   }
+
+  function renderPreviewItem(item: PreviewItem, lineIndex: number) {
+    return (
+      <li
+        key={item._id}
+        className={cn(
+          "flex min-w-0 items-center gap-1.5 text-muted-foreground",
+          item.completed && "line-through opacity-60",
+          previewLineClass(lineIndex)
+        )}
+      >
+        <span
+          aria-hidden
+          className={cn(
+            "pointer-events-none flex size-4 shrink-0 items-center justify-center rounded-[5px] border border-border/80 bg-input/90 text-primary-foreground shadow-none",
+            item.completed ? "border-primary bg-primary" : "border-transparent"
+          )}
+        >
+          {item.completed ? (
+            <Check className="size-3.5 text-primary-foreground" strokeWidth={2.5} />
+          ) : null}
+        </span>
+        <span className="min-w-0 flex-1 truncate text-foreground/80">{item.text}</span>
+      </li>
+    );
+  }
+
+  let lineIndex = 0;
+  const activeNodes = active.map((item) => renderPreviewItem(item, lineIndex++));
+  const completedStartIndex = lineIndex;
+  const completedNodes = completed.map((item) => renderPreviewItem(item, lineIndex++));
 
   return (
     <div
@@ -81,29 +115,31 @@ export function ShoppingListPreviewCard({
         {previewItems.length === 0 ? (
           <li className="text-muted-foreground italic">No items yet — tap to add</li>
         ) : (
-          previewItems.map((item, index) => (
-            <li
-              key={item._id}
-              className={cn(
-                "flex min-w-0 items-center gap-1.5 text-muted-foreground",
-                item.completed && "line-through opacity-60",
-                previewLineClass(index)
-              )}
-            >
-              <span
-                aria-hidden
+          <>
+            {activeNodes}
+            {completed.length > 0 ? (
+              <li
                 className={cn(
-                  "pointer-events-none flex size-4 shrink-0 items-center justify-center rounded-[5px] border border-border/80 bg-input/90 text-primary-foreground shadow-none",
-                  item.completed ? "border-primary bg-primary" : "border-transparent"
+                  "pointer-events-none list-none",
+                  previewLineClass(completedStartIndex)
                 )}
               >
-                {item.completed ? (
-                  <Check className="size-3.5 text-primary-foreground" strokeWidth={2.5} />
-                ) : null}
-              </span>
-              <span className="min-w-0 flex-1 truncate text-foreground/80">{item.text}</span>
-            </li>
-          ))
+                <div
+                  role="separator"
+                  aria-label={`Completed, ${completed.length}`}
+                  className={active.length > 0 ? "mt-5 pt-1 pb-0.5" : "pt-0.5 pb-0.5"}
+                >
+                  <p className="text-[11px] font-medium text-muted-foreground">
+                    Completed
+                    <span className="ml-1 tabular-nums text-muted-foreground/70">
+                      {completed.length}
+                    </span>
+                  </p>
+                </div>
+              </li>
+            ) : null}
+            {completedNodes}
+          </>
         )}
       </ul>
       {moreBase > 0 ? (

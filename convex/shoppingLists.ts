@@ -208,7 +208,7 @@ export const listMinePreviews = query({
           text: i.text,
           completed: i.completed,
         })),
-        totalItemCount: ordered.length,
+        totalItemCount: active.length,
       });
     }
     return out;
@@ -327,7 +327,7 @@ export const listSuggestions = query({
         rowKey: `u:${item._id}`,
         displayLabel: item.text,
         normalizedLabel,
-        reuseItemId: item.completed ? undefined : item._id,
+        reuseItemId: item._id,
       });
     }
 
@@ -349,14 +349,16 @@ export const listSuggestions = query({
       }
       seenNormalized.add(s.normalizedLabel);
 
-      const activeSame = items.find(
-        (i) => !i.completed && itemCanonical(i) === s.normalizedLabel
-      );
+      // Prefer an incomplete match; fall back to a completed one so re-adding
+      // a checked-off item reuses it instead of creating a duplicate.
+      const sameCanonical =
+        items.find((i) => !i.completed && itemCanonical(i) === s.normalizedLabel) ??
+        items.find((i) => i.completed && itemCanonical(i) === s.normalizedLabel);
       rows.push({
         rowKey: `s:${s._id}`,
         displayLabel: s.displayLabel,
         normalizedLabel: s.normalizedLabel,
-        reuseItemId: activeSame?._id,
+        reuseItemId: sameCanonical?._id,
       });
     }
 
@@ -547,12 +549,19 @@ export const reuseShoppingItem = mutation({
     const userId = await requireAuthUserId(ctx);
     const item = await ctx.db.get(args.itemId);
     if (!item) throw new Error("Item not found");
-    if (item.completed) throw new Error("Item is completed");
     const list = await requireList(ctx, item.listId);
     await assertCanAccessShoppingList(ctx, list, userId);
 
     const typed = args.typedText.trim();
     if (!typed) throw new Error("Text required");
+
+    if (item.completed) {
+      await ctx.db.patch(args.itemId, {
+        completed: false,
+        completedAt: undefined,
+      });
+      await touchList(ctx, item.listId);
+    }
 
     await incrementItemUsage(ctx, userId, item.listId, item._id);
     await tryInsertAlias(ctx, item.listId, item._id, typed);
@@ -572,6 +581,28 @@ export const addItem = mutation({
     if (!text) throw new Error("Item text required");
 
     const canonicalName = normalizeLabel(text);
+
+    const existingItems = await ctx.db
+      .query("shoppingListItems")
+      .withIndex("by_list", (q) => q.eq("listId", args.listId))
+      .collect();
+    const existing =
+      existingItems.find((i) => !i.completed && itemCanonical(i) === canonicalName) ??
+      existingItems.find((i) => i.completed && itemCanonical(i) === canonicalName);
+
+    if (existing) {
+      if (existing.completed) {
+        await ctx.db.patch(existing._id, {
+          completed: false,
+          completedAt: undefined,
+        });
+      }
+      await touchList(ctx, args.listId);
+      await incrementItemUsage(ctx, userId, args.listId, existing._id);
+      await tryInsertAlias(ctx, args.listId, existing._id, text);
+      await upsertSuggestion(ctx, args.listId, text);
+      return existing._id;
+    }
 
     const sortOrder = await nextItemSortOrder(ctx, args.listId);
     const id = await ctx.db.insert("shoppingListItems", {
