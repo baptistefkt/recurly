@@ -680,3 +680,48 @@ export const toggleItemComplete = mutation({
     await touchList(ctx, item.listId);
   },
 });
+
+/** Reorder incomplete items; `orderedItemIds` must be a permutation of active item ids. */
+export const reorderActiveItems = mutation({
+  args: {
+    listId: v.id("shoppingLists"),
+    orderedItemIds: v.array(v.id("shoppingListItems")),
+  },
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    const userId = await requireAuthUserId(ctx);
+    const list = await requireList(ctx, args.listId);
+    await assertCanAccessShoppingList(ctx, list, userId);
+
+    const items = await ctx.db
+      .query("shoppingListItems")
+      .withIndex("by_list", (q) => q.eq("listId", args.listId))
+      .collect();
+    const active = items.filter((i) => !i.completed);
+    const activeIds = new Set(active.map((i) => i._id));
+
+    if (args.orderedItemIds.length !== active.length) {
+      throw new Error("Ordered items must match the active list");
+    }
+    const seen = new Set<Id<"shoppingListItems">>();
+    for (const id of args.orderedItemIds) {
+      if (!activeIds.has(id)) {
+        throw new Error("Ordered items must match the active list");
+      }
+      if (seen.has(id)) {
+        throw new Error("Duplicate item in order");
+      }
+      seen.add(id);
+    }
+
+    for (let i = 0; i < args.orderedItemIds.length; i++) {
+      const id = args.orderedItemIds[i]!;
+      const item = active.find((a) => a._id === id);
+      if (item && item.sortOrder !== i) {
+        await ctx.db.patch(id, { sortOrder: i });
+      }
+    }
+    await touchList(ctx, args.listId);
+    return null;
+  },
+});

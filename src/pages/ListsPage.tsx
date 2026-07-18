@@ -13,7 +13,10 @@ import { useShoppingListItemEdit } from "@/components/shopping-lists/useShopping
 import { useShoppingListSuggestionsWithStale } from "@/components/shopping-lists/useShoppingListSuggestionsWithStale";
 import { useShoppingListTitleEdit } from "@/components/shopping-lists/useShoppingListTitleEdit";
 import { useShoppingListUrlState } from "@/components/shopping-lists/useShoppingListUrlState";
-import { optimisticToggleItemComplete } from "@/lib/shoppingListOptimistic";
+import {
+  optimisticReorderActiveItems,
+  optimisticToggleItemComplete,
+} from "@/lib/shoppingListOptimistic";
 import { api } from "../../convex/_generated/api";
 import type { Id } from "../../convex/_generated/dataModel";
 import { toast } from "sonner";
@@ -58,6 +61,11 @@ export function ListsPage() {
   const toggleItemComplete = useMemo(
     () => toggleItemCompleteMutation.withOptimisticUpdate(optimisticToggleItemComplete),
     [toggleItemCompleteMutation]
+  );
+  const reorderActiveItemsMutation = useMutation(api.shoppingLists.reorderActiveItems);
+  const reorderActiveItems = useMemo(
+    () => reorderActiveItemsMutation.withOptimisticUpdate(optimisticReorderActiveItems),
+    [reorderActiveItemsMutation]
   );
 
   const {
@@ -239,6 +247,18 @@ export function ListsPage() {
     [deleteItem]
   );
 
+  const onReorderActive = useCallback(
+    async (orderedItemIds: Id<"shoppingListItems">[]) => {
+      if (!listIdParam) return;
+      try {
+        await reorderActiveItems({ listId: listIdParam, orderedItemIds });
+      } catch (err) {
+        toast.error(err instanceof Error ? err.message : "Failed to reorder");
+      }
+    },
+    [listIdParam, reorderActiveItems]
+  );
+
   const detailOpen = Boolean(listIdParam);
   const listDetailLoading = Boolean(listIdParam && selectedList === undefined);
   const listDetailMissing = Boolean(listIdParam && selectedList === null);
@@ -314,6 +334,7 @@ export function ListsPage() {
         scheduleCommitEditFromBlur={itemEdit.scheduleCommitEditFromBlur}
         onToggleItemComplete={onToggleItemComplete}
         onDeleteItem={onDeleteItem}
+        onReorderActive={onReorderActive}
       />
 
       <CreateShoppingListDialog

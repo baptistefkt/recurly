@@ -1,4 +1,4 @@
-import { X } from "lucide-react";
+import { GripVertical, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
@@ -22,6 +22,13 @@ export function ShoppingListItemRow({
   onStartEdit,
   onToggleComplete,
   onDelete,
+  dragHandleProps,
+  setDragHandleRef,
+  isDragging,
+  sortableStyle,
+  setSortableNodeRef,
+  showDragHandle = false,
+  hideCheckbox = false,
 }: {
   item: ShoppingListItemRowModel;
   editing: boolean;
@@ -33,20 +40,51 @@ export function ShoppingListItemRow({
   onStartEdit: () => void;
   onToggleComplete: () => Promise<void>;
   onDelete: () => Promise<void>;
+  dragHandleProps?: React.HTMLAttributes<HTMLButtonElement>;
+  setDragHandleRef?: (node: HTMLButtonElement | null) => void;
+  isDragging?: boolean;
+  sortableStyle?: React.CSSProperties;
+  setSortableNodeRef?: (node: HTMLLIElement | null) => void;
+  showDragHandle?: boolean;
+  hideCheckbox?: boolean;
 }) {
   return (
     <li
+      ref={setSortableNodeRef}
+      style={sortableStyle}
       className={cn(
-        "group flex min-h-10 items-center gap-2.5 border-b border-border/50 py-1.5 pr-1 pl-1 transition-colors last:border-b-0 sm:min-h-8 sm:gap-2 sm:py-1 sm:pr-0.5 sm:pl-0.5",
+        "group flex min-h-10 items-center gap-1.5 border-b border-border/50 py-1.5 pr-1 pl-0.5 transition-colors last:border-b-0 sm:min-h-8 sm:gap-1 sm:py-1 sm:pr-0.5 sm:pl-0",
         "hover:bg-muted/40",
-        item.completed && "text-muted-foreground"
+        item.completed && "text-muted-foreground",
+        isDragging && "z-10 bg-muted/60 opacity-90 shadow-sm"
       )}
     >
-      <Checkbox
-        checked={item.completed}
-        onCheckedChange={() => void onToggleComplete()}
-        className={cn("size-5 shrink-0 sm:size-4", item.completed && "opacity-60")}
-      />
+      {showDragHandle ? (
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon-sm"
+          ref={setDragHandleRef}
+          className={cn(
+            "size-8 shrink-0 cursor-grab touch-none text-muted-foreground opacity-70 hover:text-foreground active:cursor-grabbing sm:size-6 sm:opacity-40 sm:group-hover:opacity-100",
+            isDragging && "cursor-grabbing opacity-100"
+          )}
+          aria-label="Reorder item"
+          {...dragHandleProps}
+        >
+          <GripVertical className="h-4 w-4 sm:h-3.5 sm:w-3.5" />
+        </Button>
+      ) : (
+        // Reserve grip width on sm+ so completed rows stay aligned with sortable rows.
+        <span className="hidden size-6 shrink-0 sm:block" aria-hidden />
+      )}
+      {!hideCheckbox ? (
+        <Checkbox
+          checked={item.completed}
+          onCheckedChange={() => void onToggleComplete()}
+          className={cn("size-5 shrink-0 sm:size-4", item.completed && "opacity-60")}
+        />
+      ) : null}
       {editing && !item.completed ? (
         <Input
           ref={editInputRef}

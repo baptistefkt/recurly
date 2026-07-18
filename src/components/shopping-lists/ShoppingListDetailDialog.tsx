@@ -60,6 +60,7 @@ export function ShoppingListDetailDialog({
   scheduleCommitEditFromBlur,
   onToggleItemComplete,
   onDeleteItem,
+  onReorderActive,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -97,15 +98,46 @@ export function ShoppingListDetailDialog({
   scheduleCommitEditFromBlur: () => void;
   onToggleItemComplete: (itemId: Id<"shoppingListItems">) => Promise<void>;
   onDeleteItem: (itemId: Id<"shoppingListItems">) => Promise<void>;
+  onReorderActive: (orderedItemIds: Id<"shoppingListItems">[]) => Promise<void>;
 }) {
   const animatedItemsListRef = useRef<WeakSet<HTMLElement>>(new WeakSet());
+  const itemsListAnimationControlsRef = useRef<{
+    enable: () => void;
+    disable: () => void;
+  } | null>(null);
   const [keyboardInsetPx, setKeyboardInsetPx] = useState(0);
+  const [reorderMode, setReorderMode] = useState(false);
+  const [isSmUp, setIsSmUp] = useState(
+    () => typeof window !== "undefined" && window.matchMedia("(min-width: 640px)").matches
+  );
 
   const attachItemsListAnimation = useCallback((element: HTMLElement | null) => {
     if (!element || animatedItemsListRef.current.has(element)) return;
-    autoAnimate(element, { duration: 200, easing: "ease-out" });
+    itemsListAnimationControlsRef.current = autoAnimate(element, {
+      duration: 200,
+      easing: "ease-out",
+    });
     animatedItemsListRef.current.add(element);
   }, []);
+
+  const setItemsListAnimationEnabled = useCallback((enabled: boolean) => {
+    const controls = itemsListAnimationControlsRef.current;
+    if (!controls) return;
+    if (enabled) controls.enable();
+    else controls.disable();
+  }, []);
+
+  useEffect(() => {
+    const mq = window.matchMedia("(min-width: 640px)");
+    const sync = () => setIsSmUp(mq.matches);
+    sync();
+    mq.addEventListener("change", sync);
+    return () => mq.removeEventListener("change", sync);
+  }, []);
+
+  useEffect(() => {
+    if (!open || isSmUp) setReorderMode(false);
+  }, [open, isSmUp]);
 
   useEffect(() => {
     const vv = window.visualViewport;
@@ -153,6 +185,9 @@ export function ShoppingListDetailDialog({
               memberships={memberships}
               canChangeScope={canChangeScope}
               onScopeChange={onScopeChange}
+              reorderMode={reorderMode}
+              onToggleReorderMode={() => setReorderMode((v) => !v)}
+              canReorder={(items?.some((item) => !item.completed) ?? false) && !isSmUp}
             />
 
             <div
@@ -178,6 +213,7 @@ export function ShoppingListDetailDialog({
                 <ShoppingListItemsSection
                   items={items}
                   attachItemsListAnimation={attachItemsListAnimation}
+                  setItemsListAnimationEnabled={setItemsListAnimationEnabled}
                   editingItemId={editingItemId}
                   editText={editText}
                   setEditText={setEditText}
@@ -187,6 +223,9 @@ export function ShoppingListDetailDialog({
                   setEditingItemId={setEditingItemId}
                   onToggleComplete={onToggleItemComplete}
                   onDelete={onDeleteItem}
+                  onReorderActive={onReorderActive}
+                  reorderMode={reorderMode}
+                  isSmUp={isSmUp}
                 />
               </div>
             </div>

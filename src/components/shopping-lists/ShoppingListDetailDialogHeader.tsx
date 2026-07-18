@@ -4,6 +4,7 @@ import {
   ArchiveRestore,
   MoreVertical,
   Share2,
+  Shuffle,
   UsersRound,
   Trash2,
   X,
@@ -38,6 +39,9 @@ export function ShoppingListDetailDialogHeader({
   memberships,
   canChangeScope,
   onScopeChange,
+  reorderMode,
+  onToggleReorderMode,
+  canReorder,
 }: {
   editingTitle: boolean;
   setEditingTitle: (v: boolean) => void;
@@ -53,6 +57,9 @@ export function ShoppingListDetailDialogHeader({
   memberships: MembershipRow[] | undefined;
   canChangeScope: boolean;
   onScopeChange: (teamId: Id<"teams"> | null) => Promise<void>;
+  reorderMode: boolean;
+  onToggleReorderMode: () => void;
+  canReorder: boolean;
 }) {
   const [scopeDialogOpen, setScopeDialogOpen] = useState(false);
 
@@ -103,7 +110,20 @@ export function ShoppingListDetailDialogHeader({
             </button>
           )}
         </div>
-        <div className="flex shrink-0 items-center gap-0.5">
+        <div className="flex shrink-0 items-center gap-1">
+          {canReorder ? (
+            <Button
+              type="button"
+              size="icon-sm"
+              variant={reorderMode ? "secondary" : "ghost"}
+              className="sm:hidden"
+              aria-label={reorderMode ? "Done reordering" : "Reorder items"}
+              aria-pressed={reorderMode}
+              onClick={onToggleReorderMode}
+            >
+              <Shuffle className="h-4 w-4" />
+            </Button>
+          ) : null}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button type="button" size="icon-sm" variant="ghost" aria-label="List actions">

@@ -103,3 +103,59 @@ export function optimisticToggleItemComplete(
     }
   }
 }
+
+/** Instant active-item reorder while reorderActiveItems is in flight. */
+export function optimisticReorderActiveItems(
+  localStore: OptimisticLocalStore,
+  args: { listId: Id<"shoppingLists">; orderedItemIds: Id<"shoppingListItems">[] }
+): void {
+  for (const { args: queryArgs, value } of localStore.getAllQueries(
+    api.shoppingLists.listItems
+  )) {
+    if (value === undefined) continue;
+    if (queryArgs.listId !== args.listId) continue;
+
+    const byId = new Map(value.map((item) => [item._id, item]));
+    const active: typeof value = [];
+    for (let i = 0; i < args.orderedItemIds.length; i++) {
+      const id = args.orderedItemIds[i]!;
+      const item = byId.get(id);
+      if (!item || item.completed) continue;
+      active.push({ ...item, sortOrder: i });
+    }
+    const done = value
+      .filter((item) => item.completed)
+      .sort((a, b) => (a.completedAt ?? 0) - (b.completedAt ?? 0));
+    localStore.setQuery(api.shoppingLists.listItems, queryArgs, [...active, ...done]);
+  }
+
+  for (const { args: queryArgs, value } of localStore.getAllQueries(
+    api.shoppingLists.listMinePreviews
+  )) {
+    if (value === undefined) continue;
+
+    let changed = false;
+    const nextPreviews = value.map((row) => {
+      if (row.list._id !== args.listId) return row;
+
+      const orderIndex = new Map(
+        args.orderedItemIds.map((id, index) => [id, index] as const)
+      );
+      const activeInPreview = row.previewItems.filter((item) => !item.completed);
+      const done = row.previewItems.filter((item) => item.completed);
+      const reorderedActive = [...activeInPreview].sort(
+        (a, b) => (orderIndex.get(a._id) ?? 0) - (orderIndex.get(b._id) ?? 0)
+      );
+
+      changed = true;
+      return {
+        ...row,
+        previewItems: [...reorderedActive, ...done],
+      };
+    });
+
+    if (changed) {
+      localStore.setQuery(api.shoppingLists.listMinePreviews, queryArgs, nextPreviews);
+    }
+  }
+}
