@@ -24,10 +24,7 @@ export function ReminderSettingsModal({ open, onOpenChange }: Props) {
   const [saving, setSaving] = useState(false);
 
   const [enabled, setEnabled] = useState(true);
-  const [dueSoonMinutes, setDueSoonMinutes] = useState(30);
   const [overdueEnabled, setOverdueEnabled] = useState(true);
-  const [overdueDelayMinutes, setOverdueDelayMinutes] = useState(30);
-  const [maxOverdueHours, setMaxOverdueHours] = useState(24);
   const [quietHoursEnabled, setQuietHoursEnabled] = useState(false);
   const [quietStartHour, setQuietStartHour] = useState(22);
   const [quietEndHour, setQuietEndHour] = useState(7);
@@ -35,10 +32,7 @@ export function ReminderSettingsModal({ open, onOpenChange }: Props) {
   useEffect(() => {
     if (!prefs || !open) return;
     setEnabled(prefs.enabled);
-    setDueSoonMinutes(prefs.dueSoonMinutes);
     setOverdueEnabled(prefs.overdueEnabled);
-    setOverdueDelayMinutes(prefs.overdueDelayMinutes);
-    setMaxOverdueHours(prefs.maxOverdueHours);
     setQuietHoursEnabled(prefs.quietHoursEnabled);
     setQuietStartHour(prefs.quietStartHour);
     setQuietEndHour(prefs.quietEndHour);
@@ -49,10 +43,7 @@ export function ReminderSettingsModal({ open, onOpenChange }: Props) {
       setSaving(true);
       await save({
         enabled,
-        dueSoonMinutes,
         overdueEnabled,
-        overdueDelayMinutes,
-        maxOverdueHours,
         quietHoursEnabled,
         quietStartHour,
         quietEndHour,
@@ -80,18 +71,11 @@ export function ReminderSettingsModal({ open, onOpenChange }: Props) {
             Enable push reminders
           </label>
 
-          <div className="space-y-2">
-            <Label htmlFor="due-soon-minutes">Due soon lead time (minutes)</Label>
-            <Input
-              id="due-soon-minutes"
-              type="number"
-              min={5}
-              max={240}
-              value={dueSoonMinutes}
-              onChange={(e) => setDueSoonMinutes(Math.max(5, Number(e.target.value) || 5))}
-              disabled={!enabled}
-            />
-          </div>
+          <p className="text-sm text-muted-foreground">
+            Lead and overdue timing adapt to each task&apos;s frequency — for example,
+            daily tasks remind about 30 minutes ahead; semi-annual tasks about 2 days
+            ahead.
+          </p>
 
           <label className="flex items-center gap-2 text-sm">
             <Checkbox
@@ -101,37 +85,6 @@ export function ReminderSettingsModal({ open, onOpenChange }: Props) {
             />
             Send overdue reminders
           </label>
-
-          <div className="grid grid-cols-2 gap-3">
-            <div className="space-y-2">
-              <Label htmlFor="overdue-delay">Overdue delay (minutes)</Label>
-              <Input
-                id="overdue-delay"
-                type="number"
-                min={0}
-                max={1440}
-                value={overdueDelayMinutes}
-                onChange={(e) =>
-                  setOverdueDelayMinutes(Math.max(0, Number(e.target.value) || 0))
-                }
-                disabled={!enabled || !overdueEnabled}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="max-overdue-hours">Overdue window (hours)</Label>
-              <Input
-                id="max-overdue-hours"
-                type="number"
-                min={1}
-                max={168}
-                value={maxOverdueHours}
-                onChange={(e) =>
-                  setMaxOverdueHours(Math.max(1, Number(e.target.value) || 1))
-                }
-                disabled={!enabled || !overdueEnabled}
-              />
-            </div>
-          </div>
 
           <label className="flex items-center gap-2 text-sm">
             <Checkbox

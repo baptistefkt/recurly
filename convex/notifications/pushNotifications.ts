@@ -59,19 +59,21 @@ export const sendPushNotification = internalAction({
       return { sentCount: 0, failureCount: 0, invalidTokensRemoved: 0 };
     }
 
+    // Data-only payload: FCM notification payloads are auto-shown by the browser and
+    // ignore our service worker `notificationclick` / deep-link logic unless
+    // `webpush.fcmOptions.link` is set. Sending data-only lets `src/sw.ts` call
+    // `showNotification` with our data so clicks open the app.
     const messaging = getFirebaseMessaging();
     const result = await messaging.sendEachForMulticast({
       tokens,
-      notification: {
+      data: {
         title: args.title,
         body: args.body,
+        ...(args.data ?? {}),
       },
-      data: args.data,
       webpush: {
-        notification: {
-          title: args.title,
-          body: args.body,
-          icon: "/icon.png",
+        headers: {
+          Urgency: "high",
         },
       },
     });

@@ -10,7 +10,8 @@
     "dev:backend": "convex dev",
     "build": "vite build",
     "generate:icons": "node scripts/generate-pwa-icons.mjs",
-    "lint": "tsc -p convex -noEmit --pretty false && tsc -p . -noEmit --pretty false && convex dev --once && vite build"
+    "lint": "tsc -p convex -noEmit --pretty false && tsc -p . -noEmit --pretty false && convex dev --once && vite build",
+    "test": "node --experimental-strip-types --test convex/notifications/reminderTiming.test.ts"
   },
   "dependencies": {
     "@base-ui/react": "^1.4.1",

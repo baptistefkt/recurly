@@ -2,6 +2,7 @@ import { v } from "convex/values";
 import { internalMutation, internalQuery } from "../_generated/server";
 import type { Id } from "../_generated/dataModel";
 import { computeNextDue } from "../recurrence";
+import { reminderWindowsForTask } from "./reminderTiming";
 
 const MAX_OWNED_TASKS = 500;
 const MAX_MEMBER_TEAMS = 100;
@@ -11,10 +12,7 @@ export const findPendingRemindersForUser = internalQuery({
   args: {
     userId: v.id("users"),
     now: v.number(),
-    dueSoonWindowMs: v.number(),
     overdueEnabled: v.boolean(),
-    overdueDelayMs: v.number(),
-    maxOverdueMs: v.number(),
   },
   handler: async (ctx, args) => {
     const ownedTasks = await ctx.db
@@ -70,6 +68,7 @@ export const findPendingRemindersForUser = internalQuery({
       title: string;
       dueAt: number;
       reminderType: "due_soon" | "overdue";
+      dueSoonMs: number;
     }> = [];
 
     for (const task of activeTasks) {
@@ -85,20 +84,22 @@ export const findPendingRemindersForUser = internalQuery({
       );
       if (dueAt === null) continue;
 
+      const windows = reminderWindowsForTask(task);
       const millisUntilDue = dueAt - args.now;
       const millisOverdue = args.now - dueAt;
-      if (millisUntilDue >= 0 && millisUntilDue <= args.dueSoonWindowMs) {
+      if (millisUntilDue >= 0 && millisUntilDue <= windows.dueSoonMs) {
         reminders.push({
           userId: args.userId,
           taskId: task._id,
           title: task.title,
           dueAt,
           reminderType: "due_soon",
+          dueSoonMs: windows.dueSoonMs,
         });
       } else if (
         args.overdueEnabled &&
-        millisOverdue >= args.overdueDelayMs &&
-        millisOverdue <= args.maxOverdueMs
+        millisOverdue >= windows.overdueDelayMs &&
+        millisOverdue <= windows.maxOverdueMs
       ) {
         reminders.push({
           userId: args.userId,
@@ -106,6 +107,7 @@ export const findPendingRemindersForUser = internalQuery({
           title: task.title,
           dueAt,
           reminderType: "overdue",
+          dueSoonMs: windows.dueSoonMs,
         });
       }
     }

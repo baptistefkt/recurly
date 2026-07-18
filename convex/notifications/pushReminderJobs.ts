@@ -3,6 +3,7 @@
 import { internalAction } from "../_generated/server";
 import { internal } from "../_generated/api";
 import type { Id } from "../_generated/dataModel";
+import { formatDueSoonLead } from "./reminderTiming";
 
 function isInQuietHours(
   nowMs: number,
@@ -23,11 +24,13 @@ function isInQuietHours(
 function reminderContent(reminder: {
   reminderType: "due_soon" | "overdue";
   title: string;
+  dueSoonMs: number;
 }) {
   if (reminder.reminderType === "due_soon") {
+    const lead = formatDueSoonLead(reminder.dueSoonMs);
     return {
       title: "Task due soon",
-      body: `"${reminder.title}" is due within the next 30 minutes.`,
+      body: `"${reminder.title}" is due within the next ${lead}.`,
     };
   }
   return {
@@ -38,7 +41,7 @@ function reminderContent(reminder: {
 
 export const dispatchRecurringTaskReminders = internalAction({
   args: {},
-  handler: async (ctx, args) => {
+  handler: async (ctx) => {
     const now = Date.now();
 
     const usersWithTokens: Id<"users">[] = await ctx.runQuery(
@@ -73,10 +76,7 @@ export const dispatchRecurringTaskReminders = internalAction({
         {
           userId,
           now,
-          dueSoonWindowMs: prefs.dueSoonMinutes * 60 * 1000,
           overdueEnabled: prefs.overdueEnabled,
-          overdueDelayMs: prefs.overdueDelayMinutes * 60 * 1000,
-          maxOverdueMs: prefs.maxOverdueHours * 60 * 60 * 1000,
         }
       );
 

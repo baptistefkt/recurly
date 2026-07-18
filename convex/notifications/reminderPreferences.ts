@@ -4,10 +4,7 @@ import { internalQuery, mutation, query } from "../_generated/server";
 
 const DEFAULTS = {
   enabled: true,
-  dueSoonMinutes: 30,
   overdueEnabled: true,
-  overdueDelayMinutes: 30,
-  maxOverdueHours: 24,
   quietHoursEnabled: false,
   quietStartHour: 22,
   quietEndHour: 7,
@@ -18,10 +15,7 @@ export function normalizeReminderPreferences(
   user:
     | {
         pushRemindersEnabled?: boolean;
-        pushReminderDueSoonMinutes?: number;
         pushReminderOverdueEnabled?: boolean;
-        pushReminderOverdueDelayMinutes?: number;
-        pushReminderMaxOverdueHours?: number;
         pushReminderQuietHoursEnabled?: boolean;
         pushReminderQuietStartHour?: number;
         pushReminderQuietEndHour?: number;
@@ -31,14 +25,8 @@ export function normalizeReminderPreferences(
 ) {
   return {
     enabled: user?.pushRemindersEnabled ?? DEFAULTS.enabled,
-    dueSoonMinutes:
-      user?.pushReminderDueSoonMinutes ?? DEFAULTS.dueSoonMinutes,
     overdueEnabled:
       user?.pushReminderOverdueEnabled ?? DEFAULTS.overdueEnabled,
-    overdueDelayMinutes:
-      user?.pushReminderOverdueDelayMinutes ?? DEFAULTS.overdueDelayMinutes,
-    maxOverdueHours:
-      user?.pushReminderMaxOverdueHours ?? DEFAULTS.maxOverdueHours,
     quietHoursEnabled:
       user?.pushReminderQuietHoursEnabled ?? DEFAULTS.quietHoursEnabled,
     quietStartHour:
@@ -68,10 +56,7 @@ export const getMyReminderPreferences = query({
 export const updateMyReminderPreferences = mutation({
   args: {
     enabled: v.boolean(),
-    dueSoonMinutes: v.number(),
     overdueEnabled: v.boolean(),
-    overdueDelayMinutes: v.number(),
-    maxOverdueHours: v.number(),
     quietHoursEnabled: v.boolean(),
     quietStartHour: v.number(),
     quietEndHour: v.number(),
@@ -80,19 +65,13 @@ export const updateMyReminderPreferences = mutation({
   handler: async (ctx, args) => {
     const userId = await getAuthUserId(ctx);
     if (!userId) throw new Error("Not authenticated");
-    assertRange("Due soon minutes", args.dueSoonMinutes, 5, 240);
-    assertRange("Overdue delay minutes", args.overdueDelayMinutes, 0, 1440);
-    assertRange("Max overdue hours", args.maxOverdueHours, 1, 168);
     assertRange("Quiet start hour", args.quietStartHour, 0, 23);
     assertRange("Quiet end hour", args.quietEndHour, 0, 23);
     assertRange("Timezone offset", args.timezoneOffsetMinutes, -840, 840);
 
     await ctx.db.patch(userId, {
       pushRemindersEnabled: args.enabled,
-      pushReminderDueSoonMinutes: args.dueSoonMinutes,
       pushReminderOverdueEnabled: args.overdueEnabled,
-      pushReminderOverdueDelayMinutes: args.overdueDelayMinutes,
-      pushReminderMaxOverdueHours: args.maxOverdueHours,
       pushReminderQuietHoursEnabled: args.quietHoursEnabled,
       pushReminderQuietStartHour: args.quietStartHour,
       pushReminderQuietEndHour: args.quietEndHour,
