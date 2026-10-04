@@ -8,6 +8,7 @@ import { AccountSettingsPage } from "@/pages/AccountSettingsPage";
 import { ListsPage } from "@/pages/ListsPage";
 import { StatsPage } from "@/pages/StatsPage";
 import { Toaster } from "sonner";
+import { useMainViewSwipe } from "@/hooks/useMainViewSwipe";
 import { TaskDashboard } from "@/pages/TaskDashboard";
 import {
   getLastMainView,
@@ -85,6 +86,8 @@ function AuthenticatedApp() {
       setLastMainView("lists");
     }
   }, [location, ready]);
+
+  useMainViewSwipe(ready, location, navigate);
 
   if (!ready) {
     return null;

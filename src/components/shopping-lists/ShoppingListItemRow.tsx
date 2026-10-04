@@ -71,6 +71,7 @@ export function ShoppingListItemRow({
           )}
           aria-label="Reorder item"
           {...dragHandleProps}
+          data-main-view-swipe-ignore=""
         >
           <GripVertical className="h-4 w-4 sm:h-3.5 sm:w-3.5" />
         </Button>
